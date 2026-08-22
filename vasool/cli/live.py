@@ -20,6 +20,7 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from vasool.core import env
 from vasool.core.policy import Costs, Policy
 from vasool.core.types import (
     CaseState,
@@ -80,6 +81,7 @@ def main(argv: list[str] | None = None) -> int:
                         help="use the deterministic diagnoser instead of the model")
     args = parser.parse_args(argv)
 
+    env.load()
     console = Console()
     policy, costs = Policy.load(), Costs.load()
 

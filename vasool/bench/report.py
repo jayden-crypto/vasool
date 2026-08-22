@@ -21,6 +21,7 @@ from rich.table import Table
 from vasool.bench.arms.base import Arm, CronDiagnoser
 from vasool.bench.generator import generate
 from vasool.bench.runner import ArmResult, run_arm
+from vasool.core import env
 from vasool.core.policy import Costs, Policy
 from vasool.core.types import rupees
 from vasool.diagnosis.cache import ResponseCache
@@ -155,6 +156,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--out", default=None, help="write results JSON here")
     args = parser.parse_args(argv)
 
+    env.load()
     console = Console()
     policy, costs = Policy.load(), Costs.load()
     batch = generate(args.split, n_cases=args.n)
