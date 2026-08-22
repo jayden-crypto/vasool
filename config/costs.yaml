@@ -1,0 +1,33 @@
+# Economics. Split from policy.yaml because these are business inputs, not
+# safety rules — a merchant tunes these, nobody tunes the invariants.
+#
+# All values in paise.
+
+action_cost_paise:
+  WAIT: 0
+  RETRY_SAME_RAIL: 50          # gateway attempt cost
+  RETRY_ALT_RAIL: 50
+  PAYMENT_LINK: 20             # + channel cost below
+  PART_PAYMENT_LINK: 20
+  INSTRUMENT_REFRESH: 20
+  MANDATE_REREGISTER: 30
+  HANDOFF_HUMAN: 5000          # an agent's time
+  STOP: 0
+
+channel_cost_paise:
+  NONE: 0
+  SMS: 20
+  EMAIL: 2
+  WHATSAPP: 35
+  VOICE: 200
+
+# Priced harms. These do not appear in the gross recovery number; they are what
+# turns "money recovered" into "net value created", and they are the entire
+# reason the raw-agent arm exists.
+harm_cost_paise:
+  double_collect_attempt: 50000      # refund ops + chargeback exposure
+  contact_to_opted_out: 100000       # regulatory exposure
+  quiet_hours_violation: 20000
+  over_contacted: 30000              # customer burned past patience
+  futile_retry: 500                  # wasted attempt + decline-rate damage
+  risk_retry_strike: 2500            # retrying an issuer risk decline

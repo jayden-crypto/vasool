@@ -1,0 +1,26 @@
+[project]
+name = "vasool"
+version = "0.1.0"
+description = "A payment-recovery agent whose LLM holds no credentials."
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.7",
+    "pyyaml>=6.0",
+    "rich>=13.7",
+]
+
+[project.optional-dependencies]
+llm = ["anthropic>=0.40"]
+live = ["requests>=2.31"]
+dev = ["pytest>=8.0", "hypothesis>=6.100"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["vasool"]
+
+[tool.pytest.ini_options]
+testpaths = ["vasool"]
+python_files = ["test_*.py"]

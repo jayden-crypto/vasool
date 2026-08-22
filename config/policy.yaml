@@ -1,0 +1,31 @@
+# Kernel policy. Every number here is enforced by a pure function in
+# vasool/kernel/invariants.py, and every one of them is reviewable without
+# reading a line of code. Nothing in this file is a prompt.
+
+contact:
+  # I4 — contact budget
+  max_contacts_per_window: 3
+  contact_window_hours: 168        # rolling 7 days
+  min_hours_between_contacts: 20   # cooling-off
+  quiet_hours_start_local: 21      # no outreach 21:00 -> 09:00 customer-local
+  quiet_hours_end_local: 9
+  permitted_channels: [SMS, EMAIL, WHATSAPP]
+
+attempts:
+  # I6 / attempt cap
+  max_money_actions: 6
+  max_auto_retries: 3
+  horizon_days: 21
+
+amounts:
+  # I3 — amount conservation
+  allow_part_payment: true
+  absolute_part_payment_floor_ratio: 0.25   # never below 25% of the order
+  permitted_currencies: [INR]
+
+stopping:
+  # I7 — expected value halt. Stop when expected recovery no longer clears
+  # the cost of acting by this margin.
+  min_ev_to_cost_ratio: 3.0
+  # Floor on believable success probability; below this we stop regardless.
+  min_success_probability: 0.02
