@@ -1,0 +1,77 @@
+# Benchmark environment parameters.
+#
+# This file is committed on purpose. A stopping rule or a success model tuned in
+# private is not evidence, it is decoration — a reviewer can read this in ninety
+# seconds and check that the world was not shaped to flatter the agent.
+#
+# The design point worth noticing: `evidence_style` below controls how often the
+# provider hands over a clean machine-readable reason versus a generic
+# `payment_failed` with the real cause buried in free text. That ratio is what
+# separates a rules engine from a diagnosis layer, and it is set from how Indian
+# issuers actually behave, not from what makes the agent look good.
+
+seed: 20260905
+n_cases: 500
+horizon_days: 21
+
+evidence_style:
+  clean_code: 0.55        # reason code states the cause directly
+  generic_with_prose: 0.35  # reason=payment_failed, cause only in issuer_message
+  misleading: 0.10        # reason code contradicts the issuer message
+
+# Distribution over true failure causes. Roughly mirrors the shape of a
+# card+UPI recurring book: liquidity dominates, infrastructure is spiky,
+# dead instruments are a steady tax.
+class_mixture:
+  INSUFFICIENT_FUNDS: 0.30
+  ISSUER_DOWN: 0.12
+  RAIL_TIMEOUT: 0.08
+  INSTRUMENT_DEAD: 0.14
+  AUTH_ABANDONED: 0.11
+  AUTH_FAILED: 0.06
+  RISK_DECLINED: 0.05
+  LIMIT_EXCEEDED: 0.05
+  MANDATE_INVALID: 0.06
+  RESTRICTION: 0.03
+
+amount_paise:
+  min: 9900
+  median: 129900
+  max: 4500000
+
+customer:
+  opt_out_rate: 0.07
+  dnd_rate: 0.18
+  unreachable_rate: 0.12          # customer is simply gone
+  patience_min: 1
+  patience_max: 4
+  alt_rail_rate: 0.46             # has a second instrument on file
+  intent_half_life_hours_min: 36
+  intent_half_life_hours_max: 240
+
+channel_responsiveness:           # p(acts | contacted, still engaged)
+  SMS: 0.20
+  EMAIL: 0.11
+  WHATSAPP: 0.31
+  VOICE: 0.38
+
+# A fraction of customers simply pay through another route while a recovery
+# workflow is in flight. This is not a corner case — it is the ordinary source
+# of double charges, and it is why I1 re-reads live state instead of trusting
+# what the case believes.
+out_of_band_settlement_rate: 0.09
+
+recovery_physics:
+  # Liquidity returns on a payday-ish schedule.
+  funds_return_hours_min: 12
+  funds_return_hours_max: 336
+  funds_never_return_rate: 0.22
+  # Infrastructure outages are short.
+  outage_minutes_min: 20
+  outage_minutes_max: 900
+  # A retry landing after the blocking condition clears.
+  retry_success_when_clear: 0.88
+  retry_success_when_blocked: 0.04
+  part_payment_funds_bonus: 0.55  # a smaller ask clears a thinner balance
+  instrument_refresh_uptake: 0.74 # of those who respond, this many complete it
+  handoff_success: 0.35
