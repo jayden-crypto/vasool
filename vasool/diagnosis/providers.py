@@ -84,7 +84,7 @@ USER_AGENT = "vasool/0.1.0 (payment-recovery benchmark)"
 
 
 def _post_json(url: str, payload: dict[str, Any], headers: dict[str, str],
-               timeout: float, max_retries: int = 4) -> dict[str, Any]:
+               timeout: float, max_retries: int = 8) -> dict[str, Any]:
     """POST with backoff that honours the provider's own retry hint.
 
     Free tiers throttle by tokens per minute, and a 429 there is not a failure
@@ -98,7 +98,7 @@ def _post_json(url: str, payload: dict[str, Any], headers: dict[str, str],
         except RateLimited as limited:
             if attempt == max_retries:
                 raise
-            time.sleep(min(limited.retry_after, 30.0))
+            time.sleep(min(limited.retry_after * (1.3 ** attempt), 60.0))
     raise ProviderError("unreachable")
 
 

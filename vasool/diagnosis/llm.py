@@ -35,7 +35,7 @@ from vasool.core.types import (
 from vasool.diagnosis import fallback
 from vasool.diagnosis import prompt as prompt_mod
 from vasool.diagnosis.cache import ResponseCache, key_for
-from vasool.diagnosis.providers import Provider, resolve
+from vasool.diagnosis.providers import Provider, RateLimited, resolve
 from vasool.diagnosis.schema import Proposal
 from vasool.kernel.gate import Review
 
@@ -52,6 +52,7 @@ class DiagnosisStats:
     repairs_succeeded: int = 0
     api_errors: int = 0
     breaker_trips: int = 0
+    rate_limited: int = 0
     degraded: int = 0
     out_of_taxonomy: int = 0
 
@@ -234,6 +235,17 @@ class LLMDiagnoser:
         try:
             self.stats.api_calls += 1
             parsed = self.provider.complete(prompt_mod.SYSTEM, messages)
+        except RateLimited as limited:
+            # A rate limit is NOT a broken dependency. The provider is healthy
+            # and telling us we are going too fast. Counting it toward the
+            # circuit breaker conflates "it is down" with "you are early", and
+            # in a parallel run that mistake is self-reinforcing: throttling
+            # opens the breaker, the breaker degrades every case, and the run
+            # completes having never spoken to the model.
+            self.stats.rate_limited += 1
+            self.last_error = f"RateLimited: {limited}"
+            self.errors_seen["RateLimited"] = self.errors_seen.get("RateLimited", 0) + 1
+            return None
         except Exception as exc:
             # Degrading silently is correct behaviour; degrading *invisibly* is
             # not. Keep the last error so a run can be debugged without

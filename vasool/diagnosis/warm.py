@@ -35,7 +35,8 @@ def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Pre-warm the diagnosis cache")
     parser.add_argument("--split", default="test", choices=["dev", "test"])
     parser.add_argument("--n", type=int, default=None)
-    parser.add_argument("--workers", type=int, default=4)
+    parser.add_argument("--workers", type=int, default=2,
+                        help="keep this at or below the provider's calls/min capacity")
     args = parser.parse_args(argv)
 
     env.load()
@@ -89,6 +90,13 @@ def main(argv: list[str] | None = None) -> int:
 
     cache.flush()
     elapsed = time.monotonic() - started
+    limited = sum(d.stats.rate_limited for d in diagnosers)
+    if limited:
+        console.print(
+            f"[yellow]{limited} calls gave up after retrying a rate limit.[/yellow] "
+            "Lower --workers; the free tier's ceiling is calls-per-minute, and "
+            "exceeding it makes the run slower, not faster.\n"
+        )
     console.print(
         f"\n[green]{succeeded}[/green]/{len(batch.events)} diagnosed by the model "
         f"({len(batch.events) - succeeded} fell back to the rules path)\n"
