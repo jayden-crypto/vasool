@@ -332,3 +332,41 @@ def test_i8_refuses_an_action_with_no_ledger_receipt():
 
 def test_i8_accepts_a_receipt():
     assert inv.i8_audit_before_action("a" * 64).allowed
+
+
+# --------------------------------------------------------------------------
+# Circuit breaker — regression for a run that never reached the model
+# --------------------------------------------------------------------------
+
+def test_breaker_half_opens_for_batch_work_that_outruns_the_clock():
+    """A brief hiccup must not poison a whole batch.
+
+    Regression: when the breaker opened, every later decision fell to the
+    deterministic path and returned instantly, so a 200-case run finished
+    inside the 30s cooldown. The report showed a model arm with 800 degraded
+    decisions and 25 API calls. The breaker has to recover on skip count too.
+    """
+    from vasool.diagnosis.llm import CircuitBreaker
+
+    breaker = CircuitBreaker(threshold=2, cooldown_seconds=999.0,
+                             probe_after_skips=5)
+    breaker.record_failure()
+    breaker.record_failure()
+
+    # Race through skipped calls the way a degraded batch does. Each `is_open`
+    # check counts as one skip, so the fifth is the probe.
+    verdicts = [breaker.is_open for _ in range(5)]
+    assert verdicts == [True, True, True, True, False]
+    assert breaker.probes == 1
+
+
+def test_breaker_closes_on_a_successful_probe():
+    from vasool.diagnosis.llm import CircuitBreaker
+
+    breaker = CircuitBreaker(threshold=1, cooldown_seconds=999.0, probe_after_skips=2)
+    breaker.record_failure()
+    assert breaker.is_open               # 1st skip
+    assert not breaker.is_open           # 2nd skip -> probe
+    breaker.record_success()
+    assert not breaker.is_open
+    assert breaker.consecutive_failures == 0

@@ -1,0 +1,353 @@
+{
+"00099e6154bcc79d2edf30cb605ef7eb": {
+"amount_paise": 46300,
+"channel": "EMAIL",
+"confidence": 0.9,
+"delay_hours": 6.0,
+"evidence_fields": [
+"error.issuer_message",
+"error.reason",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "MANDATE_INVALID",
+"intervention": "MANDATE_REREGISTER",
+"rationale": "The bank\u2019s issuer message \"Mandate not active\" shows the stored e\u2011mandate is invalid, overriding the generic payment_failed reason. Re\u2011registering the mandate via an email link is the most likely way to recover the payment."
+},
+"0ef014f501f95810bf47f2e5ad36e0fa": {
+"amount_paise": 60800,
+"channel": "WHATSAPP",
+"confidence": 0.9,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.reason",
+"error.issuer_message",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "INSTRUMENT_REFRESH",
+"rationale": "The error reason 'invalid_card' and issuer_message 'Invalid card number' show that the saved card used for NETBANKING is no longer valid, making the instrument dead. Refreshing the instrument by prompting the customer to re\u2011enter payment details via their preferred channel will most likely recover the payment."
+},
+"1cc68e89b1d195c6e3d61edcaec287cb": {
+"amount_paise": 305600,
+"channel": "SMS",
+"confidence": 0.96,
+"delay_hours": 8.0,
+"evidence_fields": [
+"error.reason",
+"error.issuer_message",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "PAYMENT_LINK",
+"rationale": "The error.reason 'card_expired' and issuer_message 'Saved token no longer valid, re-tokenisation required' both indicate the saved card token is dead, so the instrument cannot be used. Sending a fresh payment link lets the customer re\u2011enter a valid card, which is the most likely way to recover the money."
+},
+"2e577cf882f87fedebdb665716613940": {
+"amount_paise": 305600,
+"channel": "SMS",
+"confidence": 0.95,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.reason",
+"error.issuer_message",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "INSTRUMENT_REFRESH",
+"rationale": "The error reason \"card_expired\" and the issuer message \"Saved token no longer valid, re-tokenisation required\" both indicate that the stored card token is dead and cannot be used for payment. The most effective recovery is to request the customer to re\u2011enter their card details via an instrument refresh, sent immediately over SMS."
+},
+"4c52ed42894251771ae302aa32e52cff": {
+"amount_paise": 305600,
+"channel": "SMS",
+"confidence": 0.95,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.reason",
+"error.issuer_message",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "INSTRUMENT_REFRESH",
+"rationale": "The issuer message and reason both state the saved token is no longer valid (card_expired), meaning the instrument is dead and cannot be used for a retry. The best recovery is to request a fresh card token via an instrument refresh, sent immediately over SMS."
+},
+"4dfcd3f433d96682853a786b4150a566": {
+"amount_paise": 305600,
+"channel": "SMS",
+"confidence": 0.95,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.reason",
+"error.issuer_message",
+"customer.saved_rails"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "PAYMENT_LINK",
+"rationale": "The error reason 'card_expired' and issuer message 'Saved token no longer valid, re-tokenisation required' both indicate the stored card token is dead, so the instrument cannot be used. Sending a payment link via SMS lets the customer provide fresh card details to complete the full amount payment."
+},
+"5c8fa16ed6f1987ddd51513f1ba8dcea": {
+"amount_paise": 305600,
+"channel": "SMS",
+"confidence": 0.95,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.reason",
+"error.issuer_message",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "INSTRUMENT_REFRESH",
+"rationale": "The error.reason 'card_expired' and issuer_message indicating the saved token is no longer valid point to a dead instrument that must be re\u2011tokenised. Refreshing the card details via SMS is the most direct way to obtain a fresh token and recover the payment."
+},
+"65db3bd6d1111e370077e719072380c8": {
+"amount_paise": 46300,
+"channel": "EMAIL",
+"confidence": 0.93,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.issuer_message",
+"error.reason",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "MANDATE_INVALID",
+"intervention": "MANDATE_REREGISTER",
+"rationale": "The issuer message \"Mandate not active\" shows the EMANDATE mandate is invalid, which aligns with the MANDATE_INVALID failure class. The best recovery is to prompt the customer to re\u2011register the mandate via a MANDATE_REREGISTER action sent by EMAIL immediately."
+},
+"7883603adcd413f19b3d003641ab6d22": {
+"amount_paise": 305600,
+"channel": "SMS",
+"confidence": 0.94,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.reason",
+"error.issuer_message",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "PAYMENT_LINK",
+"rationale": "The error.reason 'card_expired' and issuer_message indicate the saved token is no longer valid, meaning the instrument is dead. Sending a fresh payment link lets the customer provide a new card token, which is the appropriate recovery action."
+},
+"7a5a4c423695b2f9125b61da8ded57c1": {
+"amount_paise": 46300,
+"channel": "EMAIL",
+"confidence": 0.92,
+"delay_hours": 2.0,
+"evidence_fields": [
+"error.issuer_message",
+"error.reason",
+"payment.rail"
+],
+"failure_class": "MANDATE_INVALID",
+"intervention": "MANDATE_REREGISTER",
+"rationale": "The bank returned 'Mandate not active', indicating the stored e\u2011mandate is no longer valid, which overrides the generic payment_failed reason. The correct recovery is to have the customer re\u2011register the mandate. To respect the QUIET_HOURS constraint (local hour 6), the action is delayed until after quiet hours (2\u202fhours from now)."
+},
+"7e2fe37d23c2493388e1afdec7c2a5ba": {
+"amount_paise": 305600,
+"channel": "SMS",
+"confidence": 0.94,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.reason",
+"error.issuer_message",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "PAYMENT_LINK",
+"rationale": "The error.reason 'card_expired' and issuer_message stating the saved token is no longer valid indicate the stored card instrument is dead and cannot be reused. Sending a fresh payment link lets the customer re\u2011enter card details to obtain a new token, which is the most likely way to recover the amount."
+},
+"96349a1bbf0b42c0829a17a41110edf8": {
+"amount_paise": 292100,
+"channel": "WHATSAPP",
+"confidence": 0.85,
+"delay_hours": 4.0,
+"evidence_fields": [
+"error.issuer_message",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "MANDATE_INVALID",
+"intervention": "MANDATE_REREGISTER",
+"rationale": "The bank message \"UPI Autopay mandate paused\" indicates the saved e\u2011mandate is no longer active, so the failure is due to an invalid or paused mandate. Re\u2011registering the mandate is the most direct way to recover the subscription payment. Because the local hour is 2 (quiet hours), the action is delayed 4\u202fhours so it will be sent after quiet\u2011hour window via the merchant\u2011preferred WhatsApp channel."
+},
+"98dc0dbe00ac68a565e67ba48b675f01": {
+"amount_paise": 129100,
+"channel": "SMS",
+"confidence": 0.9,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.issuer_message",
+"error.reason",
+"error.step",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "AUTH_ABANDONED",
+"intervention": "PAYMENT_LINK",
+"rationale": "The error indicates the customer abandoned the authentication step (issuer_message: \"Authentication abandoned by cardholder\", reason: \"payment_failed\"), which matches the AUTH_ABANDONED failure class. Sending a fresh payment link via SMS immediately gives the customer another opportunity to complete the authentication and recover the payment."
+},
+"a0d0514cddf1240ed0ec60acb4be077d": {
+"amount_paise": 292100,
+"channel": "WHATSAPP",
+"confidence": 0.93,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.issuer_message",
+"error.reason",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "MANDATE_INVALID",
+"intervention": "MANDATE_REREGISTER",
+"rationale": "The issuer message \"UPI Autopay mandate paused\" shows the saved EMANDATE mandate is inactive, making the instrument invalid for the recurring debit, which aligns with the MANDATE_INVALID failure class. The best recovery is to prompt the customer to re\u2011register the mandate via a WhatsApp message immediately."
+},
+"abcd837b7009ad778736111fe1514bb9": {
+"amount_paise": 39800,
+"channel": "NONE",
+"confidence": 0.9,
+"delay_hours": 2.0,
+"evidence_fields": [
+"error.issuer_message",
+"error.reason"
+],
+"failure_class": "ISSUER_DOWN",
+"intervention": "WAIT",
+"rationale": "The issuer_message explicitly says the bank host is offline, indicating a temporary service outage, which overrides the generic error.reason. Waiting for the bank to come back online is the safest way to recover the payment without risking further declines."
+},
+"b4b30da2d5129811e95f39b39fb428b6": {
+"amount_paise": 305600,
+"channel": "SMS",
+"confidence": 0.95,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.reason",
+"error.issuer_message",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "INSTRUMENT_REFRESH",
+"rationale": "The error.reason 'card_expired' and issuer_message 'Saved token no longer valid, re-tokenisation required' indicate the stored card token is dead and cannot be used for payment. The appropriate recovery is to request the customer to re\u2011enter or re\u2011tokenise the card, using a prompt sent via the merchant's preferred channel."
+},
+"ba01f240aba965eda493c72fabd7fcb1": {
+"amount_paise": 305600,
+"channel": "SMS",
+"confidence": 0.93,
+"delay_hours": 5.0,
+"evidence_fields": [
+"error.reason",
+"error.issuer_message",
+"customer.saved_rails"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "INSTRUMENT_REFRESH",
+"rationale": "The issuer message explicitly says the saved token is no longer valid and the reason code is card_expired, indicating the instrument cannot be used again without re\u2011tokenisation. Refreshing the card details is the only way to recover the payment. Because the customer is in local hour 1 (quiet hours), the contact must be delayed until after quiet hours."
+},
+"c02c8c18b24dc3db7ef2561f25d7597f": {
+"amount_paise": 305600,
+"channel": "SMS",
+"confidence": 0.95,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.reason",
+"error.issuer_message",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "INSTRUMENT_REFRESH",
+"rationale": "The error reason \"card_expired\" and the issuer message \"Saved token no longer valid, re-tokenisation required\" both indicate that the stored card token is dead and cannot be used for payment. The appropriate recovery is to request a fresh card token (instrument refresh) via the customer's preferred SMS channel, sent immediately."
+},
+"c83e0faf1dee15a836763bff96e2a192": {
+"amount_paise": 46300,
+"channel": "EMAIL",
+"confidence": 0.9,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.issuer_message",
+"error.reason",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "MANDATE_INVALID",
+"intervention": "HANDOFF_HUMAN",
+"rationale": "The issuer message \"Mandate not active\" and the generic payment_failed reason indicate the stored e\u2011mandate is no longer valid, making the instrument dead for this subscription. Since three automated re\u2011registration attempts have already failed, the most effective recovery is to hand off the case to a human agent via email to guide the customer through re\u2011activating or recreating the mandate."
+},
+"d860e05d527187179f095282935d33f7": {
+"amount_paise": 305600,
+"channel": "SMS",
+"confidence": 0.95,
+"delay_hours": 8.0,
+"evidence_fields": [
+"error.reason",
+"error.issuer_message",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "PAYMENT_LINK",
+"rationale": "The issuer message explicitly states the saved token is no longer valid and requires re-tokenisation, and the reason code 'card_expired' confirms the instrument is dead. Sending a fresh payment link after quiet hours lets the customer provide a new card, the only way to recover the amount."
+},
+"e383c1657ed95996daa324926786e731": {
+"amount_paise": 305600,
+"channel": "SMS",
+"confidence": 0.96,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.reason",
+"error.issuer_message",
+"payment.rail",
+"customer.saved_rails"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "PAYMENT_LINK",
+"rationale": "The error.reason 'card_expired' and issuer_message 'Saved token no longer valid, re-tokenisation required' indicate the saved card token is dead and cannot be used for payment. Sending a fresh payment link lets the customer re\u2011enter card details, which is the most effective way to recover the amount."
+},
+"ef96e0c8bd8e2af0366d7b45d67feceb": {
+"amount_paise": 60800,
+"channel": "WHATSAPP",
+"confidence": 0.92,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.reason",
+"error.issuer_message"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "PAYMENT_LINK",
+"rationale": "The issuer message \"Invalid card number\" and reason \"invalid_card\" show that the saved netbanking instrument is no longer valid, making the instrument dead. Sending a payment link via WhatsApp lets the customer provide a fresh instrument to complete the payment."
+},
+"f58bf4362d28bb58854c5ec1b71ac4ae": {
+"amount_paise": 60800,
+"channel": "WHATSAPP",
+"confidence": 0.92,
+"delay_hours": 2.0,
+"evidence_fields": [
+"error.issuer_message",
+"error.reason",
+"payment.rail"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "INSTRUMENT_REFRESH",
+"rationale": "The issuer message 'Invalid card number' and reason 'invalid_card' show the saved card is no longer valid, making the instrument dead. Refreshing the instrument (e.g., asking the customer to re\u2011enter card details) is the only way to recover, and we delay the request by 2\u202fhours to avoid the quiet\u2011hours window (local hour\u202f7)."
+},
+"f82ad1e9f16f8ef80969a2784cbe93ad": {
+"amount_paise": 305600,
+"channel": "SMS",
+"confidence": 0.94,
+"delay_hours": 0.0,
+"evidence_fields": [
+"error.reason",
+"error.issuer_message",
+"customer.saved_rails"
+],
+"failure_class": "INSTRUMENT_DEAD",
+"intervention": "PAYMENT_LINK",
+"rationale": "The error.reason 'card_expired' and issuer_message 'Saved token no longer valid, re-tokenisation required' indicate the saved card token is dead, so the instrument cannot be used again. Sending a PAYMENT_LINK lets the customer provide a fresh card token, which is the only way to recover the amount."
+}
+}

@@ -93,28 +93,51 @@ class RulesDiagnoser:
 
 
 class CircuitBreaker:
-    """Stop hammering a dependency that is already failing."""
+    """Stop hammering a dependency that is already failing.
 
-    def __init__(self, threshold: int = 4, cooldown_seconds: float = 30.0) -> None:
+    The cooldown is deliberately *two* conditions, not one. A wall-clock
+    cooldown alone is wrong for batch work: when the breaker opens, every
+    subsequent decision falls to the deterministic path and completes
+    instantly, so a whole 200-case run can finish inside the 30-second window.
+    A brief hiccup then poisons the entire run, and the report shows a model
+    arm that never once called the model.
+
+    So it also half-opens after a number of skipped calls, which lets a batch
+    job probe and recover on its own terms rather than on the clock's.
+    """
+
+    def __init__(self, threshold: int = 6, cooldown_seconds: float = 30.0,
+                 probe_after_skips: int = 25) -> None:
         self.threshold = threshold
         self.cooldown = cooldown_seconds
+        self.probe_after_skips = probe_after_skips
         self.consecutive_failures = 0
         self.opened_at: Optional[float] = None
         self.trips = 0
+        self.skipped_while_open = 0
+        self.probes = 0
 
     @property
     def is_open(self) -> bool:
         if self.opened_at is None:
             return False
         if time.monotonic() - self.opened_at >= self.cooldown:
-            self.opened_at = None
-            self.consecutive_failures = 0
+            self._close()
             return False
+        self.skipped_while_open += 1
+        if self.skipped_while_open >= self.probe_after_skips:
+            self.skipped_while_open = 0
+            self.probes += 1
+            return False                 # half-open: let one through
         return True
 
-    def record_success(self) -> None:
-        self.consecutive_failures = 0
+    def _close(self) -> None:
         self.opened_at = None
+        self.consecutive_failures = 0
+        self.skipped_while_open = 0
+
+    def record_success(self) -> None:
+        self._close()
 
     def record_failure(self) -> None:
         self.consecutive_failures += 1

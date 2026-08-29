@@ -116,10 +116,12 @@ def scenario_model_unavailable() -> Result:
     all_resolved = all(p is not None for p, _ in decisions)
     return Result(
         "Model API times out repeatedly",
-        passed=breaker_open and all_resolved and diagnoser.stats.api_calls <= 5,
+        passed=breaker_open and all_resolved
+        and diagnoser.stats.api_calls <= diagnoser.breaker.threshold + 1,
         claim="circuit breaker opens; the queue drains on the rules path",
         observed=[
-            f"api calls attempted before opening: {diagnoser.stats.api_calls} of 8",
+            f"api calls attempted before opening: {diagnoser.stats.api_calls} of 8 "
+            f"(threshold {diagnoser.breaker.threshold})",
             f"breaker trips: {diagnoser.breaker.trips}",
             f"decisions produced: {len(decisions)}/8, all degraded-safe",
         ],
