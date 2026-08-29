@@ -157,8 +157,12 @@ make faults
 ```
 
 `make faults` breaks nine things on purpose and checks that each lands somewhere
-safe. `make bench-full` adds the model-backed arms. `make live` runs one real
-recovery against a Razorpay test-mode account.
+safe. `make bench-full` adds the model-backed arms.
+
+`make live` runs one recovery against a Razorpay test-mode account. The backends
+are implemented but **were never run against a real account** — Razorpay gated
+test keys behind bank verification. Every number in this repository comes from
+the simulated environment. See [LIMITATIONS.md](LIMITATIONS.md).
 
 ---
 

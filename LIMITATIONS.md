@@ -22,16 +22,30 @@ actually happened. That needs data I do not have.
 The generator's parameters are in `config/generator.yaml`, committed and
 seeded, so the world can be inspected rather than trusted.
 
-## The live path is narrower than the simulated one
+## The live path is implemented but was not run
 
-`make live` runs against a real Razorpay test-mode account: a real order, a
-real settlement read for I1, a real payment link with a real `reference_id`
-carrying idempotency. That part is genuine.
+**This is the most important caveat on the page.** `vasool/executor/razorpay_rest.py`
+and `vasool/executor/razorpay_mcp.py` are complete — real orders, a real
+settlement read for I1, real payment links carrying the action key as
+`reference_id` for idempotency, and a refusal to start on a non-test key. The
+code paths are written and reviewed.
 
-Auto-retries (`RETRY_SAME_RAIL`, `RETRY_ALT_RAIL`) are **not** exercised live.
-Replaying a stored instrument needs a saved token and a recurring-enabled
-account, which a plain test key does not have. The live backend raises rather
-than pretending, and the benchmark is where retry behaviour is measured.
+They were **not exercised against a real Razorpay account.** Razorpay's
+onboarding gated test-key issuance behind a bank-account verification step, and
+handing over bank details to unblock a demo was not a trade worth making. So
+`make live` is untested against the live API, and every number in this
+repository comes from the simulated environment.
+
+What that means concretely: the backend interface is shared with the simulator
+and exercised by the full test suite through it, so the Gate, the executor and
+the arms are the same code either way — but the HTTP request shapes, the
+`reference_id` duplicate-detection behaviour, and the order-status read have not
+been confirmed against Razorpay's actual responses. Treat them as unverified.
+
+Auto-retries (`RETRY_SAME_RAIL`, `RETRY_ALT_RAIL`) would not be exercisable live
+in any case: replaying a stored instrument needs a saved token and a
+recurring-enabled account, which a plain test key does not have. The live
+backend raises rather than pretending.
 
 ## The kernel inherits the provider's mistakes
 
