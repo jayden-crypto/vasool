@@ -22,6 +22,8 @@ from __future__ import annotations
 
 import json
 import os
+import re
+import time
 import urllib.error
 import urllib.request
 from typing import Any, Optional, Protocol
@@ -33,6 +35,29 @@ DEFAULT_ANTHROPIC_MODEL = "claude-opus-5"
 
 class ProviderError(Exception):
     """The provider could not produce a usable proposal."""
+
+
+class RateLimited(ProviderError):
+    """The provider is throttling. Carries how long it asked us to wait."""
+
+    def __init__(self, retry_after: float, detail: str = "") -> None:
+        super().__init__(f"rate limited, retry in {retry_after:.1f}s: {detail}")
+        self.retry_after = retry_after
+
+
+_RETRY_HINT = re.compile(r"try again in ([0-9.]+)s")
+
+
+def _retry_after(exc: "urllib.error.HTTPError", body: str) -> float:
+    """How long to wait. Prefer the header, then the message, then a default."""
+    header = exc.headers.get("retry-after") if exc.headers else None
+    if header:
+        try:
+            return float(header)
+        except ValueError:
+            pass
+    match = _RETRY_HINT.search(body)
+    return float(match.group(1)) + 0.5 if match else 5.0
 
 
 class Provider(Protocol):
@@ -52,17 +77,45 @@ def _strict_schema() -> dict[str, Any]:
     return schema
 
 
+#: Several hosted providers sit behind a WAF that rejects the default
+#: ``Python-urllib/3.x`` agent with a 403 before the request ever reaches the
+#: API. Identifying the client properly is the whole fix.
+USER_AGENT = "vasool/0.1.0 (payment-recovery benchmark)"
+
+
 def _post_json(url: str, payload: dict[str, Any], headers: dict[str, str],
+               timeout: float, max_retries: int = 4) -> dict[str, Any]:
+    """POST with backoff that honours the provider's own retry hint.
+
+    Free tiers throttle by tokens per minute, and a 429 there is not a failure
+    — it is the provider telling you exactly how long to wait. Treating it as
+    an error would degrade cases to the rules path for no reason and quietly
+    understate what the model can do.
+    """
+    for attempt in range(max_retries + 1):
+        try:
+            return _post_once(url, payload, headers, timeout)
+        except RateLimited as limited:
+            if attempt == max_retries:
+                raise
+            time.sleep(min(limited.retry_after, 30.0))
+    raise ProviderError("unreachable")
+
+
+def _post_once(url: str, payload: dict[str, Any], headers: dict[str, str],
                timeout: float) -> dict[str, Any]:
     request = urllib.request.Request(
         url, data=json.dumps(payload).encode(), method="POST",
-        headers={"Content-Type": "application/json", **headers},
+        headers={"Content-Type": "application/json",
+                 "User-Agent": USER_AGENT, **headers},
     )
     try:
         with urllib.request.urlopen(request, timeout=timeout) as response:
             return json.loads(response.read().decode())
     except urllib.error.HTTPError as exc:
         body = exc.read().decode()[:400]
+        if exc.code == 429:
+            raise RateLimited(_retry_after(exc, body), body) from exc
         raise ProviderError(f"HTTP {exc.code}: {body}") from exc
     except urllib.error.URLError as exc:
         raise ProviderError(f"connection failed: {exc.reason}") from exc
@@ -143,7 +196,7 @@ class OpenAICompatProvider:
         for mode in modes:
             payload: dict[str, Any] = {
                 "model": self.model, "messages": list(chat),
-                "temperature": 0, "max_tokens": 1200,
+                "temperature": 0, "max_tokens": 700,
             }
             if mode == "json_schema":
                 payload["response_format"] = {

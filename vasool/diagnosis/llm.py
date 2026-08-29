@@ -35,7 +35,7 @@ from vasool.core.types import (
 from vasool.diagnosis import fallback
 from vasool.diagnosis import prompt as prompt_mod
 from vasool.diagnosis.cache import ResponseCache, key_for
-from vasool.diagnosis.providers import Provider, ProviderError, resolve
+from vasool.diagnosis.providers import Provider, resolve
 from vasool.diagnosis.schema import Proposal
 from vasool.kernel.gate import Review
 
@@ -142,6 +142,8 @@ class LLMDiagnoser:
         self.stats = DiagnosisStats()
         self.breaker = CircuitBreaker()
         self.max_repairs = max_repairs
+        self.last_error: Optional[str] = None
+        self.errors_seen: dict[str, int] = {}
 
     @property
     def model(self) -> str:
@@ -232,8 +234,14 @@ class LLMDiagnoser:
         try:
             self.stats.api_calls += 1
             parsed = self.provider.complete(prompt_mod.SYSTEM, messages)
-        except (ProviderError, Exception):
+        except Exception as exc:
+            # Degrading silently is correct behaviour; degrading *invisibly* is
+            # not. Keep the last error so a run can be debugged without
+            # re-instrumenting, and count it.
             self.stats.api_errors += 1
+            self.last_error = f"{type(exc).__name__}: {exc}"
+            self.errors_seen[type(exc).__name__] = (
+                self.errors_seen.get(type(exc).__name__, 0) + 1)
             self.breaker.record_failure()
             return None
 
