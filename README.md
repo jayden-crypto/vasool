@@ -77,16 +77,68 @@ and **roughly doubles net value**.
 > `config/generator.yaml` so you can check it was not shaped to flatter the
 > agent. Relative comparisons are the finding. Absolute rates are not a forecast.
 
-### Arms C and D
+### Arms C and D — and why the model is swappable
 
-Arms **C** (model with direct MCP write access, no kernel) and **D** (model +
-kernel) are implemented and tested, and run with `make bench-full`. They need an
-`ANTHROPIC_API_KEY`; the numbers above are the arms that run without one.
-Responses cache to `cache/llm_responses.json` by evidence digest, so a replay is
-free and byte-identical.
+Arms **C** (model with direct write access, no kernel) and **D** (model + kernel)
+are implemented and run with `make bench-full`. Both use the **same provider,
+model, prompt and cache**. The only difference between them is the kernel. That
+is the whole experiment.
 
-Both model arms use the **same model, effort, prompt and cache**. The only
-difference between C and D is the kernel. That is the whole experiment.
+The reasoning zone is deliberately provider-agnostic — see
+`vasool/diagnosis/providers.py`. That is not a convenience feature, it is the
+thesis being cashed out: **the model holds no authority, so which model sits
+there is a swappable detail.** If the architecture only worked with a frontier
+model, the kernel would not be carrying its weight.
+
+Every response caches to `cache/llm_responses.json` by evidence digest, so a
+replay is free and byte-identical, and the cache is committed — a reviewer can
+reproduce the run with no account of any kind.
+
+---
+
+## Running the model arms for free
+
+None of the options below need a credit card.
+
+### Locally, with no account at all
+
+```bash
+brew install ollama && ollama serve &
+ollama pull qwen2.5:7b
+make bench-local
+```
+
+Runs entirely on your machine, offline, at zero cost. Ollama's native API does
+grammar-constrained decoding against the schema in
+`vasool/diagnosis/schema.py`, which is why a 7B model produces valid proposals
+nearly every time rather than nearly often.
+
+### Hosted free tiers
+
+Any OpenAI-shaped endpoint works. Set three variables and run `make bench-full`:
+
+| Provider | `VASOOL_BASE_URL` | Notes |
+|---|---|---|
+| Groq | `https://api.groq.com/openai/v1` | Free tier, no card. Fastest option by a wide margin. |
+| Google AI Studio | `https://generativelanguage.googleapis.com/v1beta/openai` | Free tier, no card. |
+| OpenRouter | `https://openrouter.ai/api/v1` | Models with a `:free` suffix cost nothing. |
+| Cerebras | `https://api.cerebras.ai/v1` | Free tier. |
+
+```bash
+VASOOL_PROVIDER=openai_compat
+VASOOL_BASE_URL=https://api.groq.com/openai/v1
+VASOOL_MODEL=llama-3.3-70b-versatile
+VASOOL_API_KEY=<your free key>
+```
+
+### With an Anthropic key
+
+If `ANTHROPIC_API_KEY` is set and `VASOOL_PROVIDER` is not, the Anthropic SDK is
+used automatically — `claude-opus-5` by default, overridable with
+`VASOOL_MODEL`. This is the path with a cost attached; everything above is not.
+
+Whichever you use, **report which model produced which numbers.** The provider
+is recorded in every results JSON and printed at the top of every run.
 
 ---
 

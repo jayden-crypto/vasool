@@ -69,7 +69,7 @@ def scenario_malformed_output() -> Result:
     _, env, case, now = _world()
     diagnoser = LLMDiagnoser(
         POLICY, cache=ResponseCache(enabled=False),
-        client=inject.BrokenClient("invalid_json"),
+        provider=inject.BrokenProvider("invalid_json"),
     )
     proposal, degraded = diagnoser.propose(case, now)
     return Result(
@@ -90,7 +90,7 @@ def scenario_out_of_taxonomy() -> Result:
     _, env, case, now = _world()
     diagnoser = LLMDiagnoser(
         POLICY, cache=ResponseCache(enabled=False),
-        client=inject.BrokenClient("out_of_taxonomy"),
+        provider=inject.BrokenProvider("out_of_taxonomy"),
     )
     proposal, degraded = diagnoser.propose(case, now)
     valid = proposal.diagnosis.failure_class in set(FailureClass)
@@ -109,7 +109,7 @@ def scenario_model_unavailable() -> Result:
     _, env, case, now = _world()
     diagnoser = LLMDiagnoser(
         POLICY, cache=ResponseCache(enabled=False),
-        client=inject.BrokenClient("timeout"),
+        provider=inject.BrokenProvider("timeout"),
     )
     decisions = [diagnoser.propose(case, now) for _ in range(8)]
     breaker_open = diagnoser.breaker.opened_at is not None

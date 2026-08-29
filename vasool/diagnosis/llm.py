@@ -35,10 +35,10 @@ from vasool.core.types import (
 from vasool.diagnosis import fallback
 from vasool.diagnosis import prompt as prompt_mod
 from vasool.diagnosis.cache import ResponseCache, key_for
+from vasool.diagnosis.providers import Provider, ProviderError, resolve
 from vasool.diagnosis.schema import Proposal
 from vasool.kernel.gate import Review
 
-DEFAULT_MODEL = os.environ.get("VASOOL_MODEL", "claude-opus-5")
 DEFAULT_EFFORT = os.environ.get("VASOOL_EFFORT", "low")
 
 
@@ -130,33 +130,26 @@ class LLMDiagnoser:
     def __init__(
         self,
         policy: Policy,
-        model: str = DEFAULT_MODEL,
+        provider: Optional[Provider] = None,
         effort: str = DEFAULT_EFFORT,
         cache: Optional[ResponseCache] = None,
-        client: Any = None,
         max_repairs: int = 1,
     ) -> None:
         self.policy = policy
-        self.model = model
+        self.provider = provider if provider is not None else resolve()
         self.effort = effort
         self.cache = cache if cache is not None else ResponseCache()
         self.stats = DiagnosisStats()
         self.breaker = CircuitBreaker()
         self.max_repairs = max_repairs
-        self._client = client
-        self._client_ready = client is not None
 
-    # -- client -------------------------------------------------------------
+    @property
+    def model(self) -> str:
+        return getattr(self.provider, "model", "none")
 
-    def _get_client(self) -> Any:
-        if not self._client_ready:
-            try:
-                import anthropic
-                self._client = anthropic.Anthropic()
-            except Exception:
-                self._client = None
-            self._client_ready = True
-        return self._client
+    @property
+    def provider_name(self) -> str:
+        return getattr(self.provider, "name", "none")
 
     # -- public -------------------------------------------------------------
 
@@ -199,7 +192,8 @@ class LLMDiagnoser:
         digest = f"{digest}:{case.attempts}:{len(case.contacts)}"
         if customer_reply:
             digest = f"{digest}:reply{abs(hash(customer_reply)) % 10**8}"
-        cache_key = key_for(digest, prompt_mod.PROMPT_VERSION, self.model,
+        cache_key = key_for(digest, prompt_mod.PROMPT_VERSION,
+                            f"{self.provider_name}:{self.model}",
                             self.effort, repair_round)
 
         cached = self.cache.get(cache_key)
@@ -214,8 +208,7 @@ class LLMDiagnoser:
             self.stats.breaker_trips += 1
             return None
 
-        client = self._get_client()
-        if client is None:
+        if self.provider is None:
             return None
 
         bundle = prompt_mod.evidence_bundle(case.event, case, now, customer_reply)
@@ -238,8 +231,8 @@ class LLMDiagnoser:
 
         try:
             self.stats.api_calls += 1
-            parsed = self._call(client, messages)
-        except Exception:
+            parsed = self.provider.complete(prompt_mod.SYSTEM, messages)
+        except (ProviderError, Exception):
             self.stats.api_errors += 1
             self.breaker.record_failure()
             return None
@@ -252,26 +245,6 @@ class LLMDiagnoser:
         self.breaker.record_success()
         self.cache.put(cache_key, parsed.model_dump())
         return parsed
-
-    def _call(self, client: Any, messages: list[dict[str, Any]]) -> Optional[Proposal]:
-        """One request. Falls back to a plainer request shape if the SDK or the
-        API rejects the richer one, rather than failing the case outright."""
-        kwargs: dict[str, Any] = dict(
-            model=self.model,
-            max_tokens=4096,
-            system=prompt_mod.SYSTEM,
-            messages=messages,
-            output_format=Proposal,
-        )
-        try:
-            response = client.messages.parse(
-                **kwargs,
-                thinking={"type": "adaptive"},
-                output_config={"effort": self.effort},
-            )
-        except TypeError:
-            response = client.messages.parse(**kwargs)
-        return getattr(response, "parsed_output", None)
 
     def _to_action(
         self, raw: Proposal, case: CaseState, now: datetime,

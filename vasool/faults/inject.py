@@ -98,24 +98,29 @@ class ErroringBackend:
         return self.inner.reconcile(idempotency_key, case, now)
 
 
-class BrokenClient:
-    """An SDK client that returns things a strict schema must reject."""
+class BrokenProvider:
+    """A provider that misbehaves the way real ones do.
+
+    Provider-level rather than SDK-level, so the same failure modes are
+    exercised whichever model is behind the reasoning zone — a local 7B fails
+    in these ways more often than a frontier model, not less.
+    """
+
+    name = "broken"
+    model = "broken"
 
     def __init__(self, mode: str = "invalid_json") -> None:
         self.mode = mode
         self.calls = 0
-        self.messages = self
 
-    def parse(self, **kwargs: Any) -> Any:
+    def complete(self, system: str, messages: list[dict[str, Any]]) -> Any:
         self.calls += 1
         if self.mode == "timeout":
             raise TimeoutError("request timed out")
         if self.mode == "rate_limit":
             raise RuntimeError("429 rate_limit_error")
         if self.mode == "invalid_json":
-            class _Response:
-                parsed_output = None
-            return _Response()
+            return None                      # unparseable output
         if self.mode == "out_of_taxonomy":
             raise ValueError(
                 "1 validation error for Proposal\nfailure_class\n  "

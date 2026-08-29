@@ -1,7 +1,7 @@
 PY := .venv/bin/python
 LEDGER := $(shell ls -t runs/*-E-*.jsonl 2>/dev/null | head -1)
 
-.PHONY: help setup test bench bench-dev bench-ledger bench-full faults trace live live-inject clean
+.PHONY: help setup test bench bench-dev bench-ledger bench-full bench-local bench-local-quick faults trace live live-inject clean
 
 help:
 	@echo "Vasool — a recovery agent that is not allowed to move money"
@@ -9,7 +9,8 @@ help:
 	@echo "  make setup        create the venv and install dependencies"
 	@echo "  make test         kernel invariants, properties, faults, benchmark guarantees"
 	@echo "  make bench        four-arm benchmark on the held-out split"
-	@echo "  make bench-full   same, with model-backed arms (needs ANTHROPIC_API_KEY)"
+	@echo "  make bench-full   same, with model-backed arms (needs a provider)"
+	@echo "  make bench-local  model arms on a local Ollama model, at zero cost"
 	@echo "  make bench-dev    fast pass on the dev split, for iterating"
 	@echo "  make faults       fault injection, including the prompt-injection demo"
 	@echo "  make trace        render the most recent audit ledger"
@@ -28,6 +29,16 @@ bench:
 
 bench-full:
 	$(PY) -m vasool.bench.report --split test --arms A,B,C,D,E --ledger
+
+# Model arms on a local model, at zero cost. Needs `ollama serve` running.
+bench-local:
+	VASOOL_PROVIDER=ollama VASOOL_MODEL=$${VASOOL_MODEL:-qwen2.5:7b} \
+	$(PY) -m vasool.bench.report --split test --arms A,B,C,D,E --ledger
+
+# Fast sanity pass on the model arms before spending a full run.
+bench-local-quick:
+	VASOOL_PROVIDER=ollama VASOOL_MODEL=$${VASOOL_MODEL:-qwen2.5:7b} \
+	$(PY) -m vasool.bench.report --split dev --n 40 --arms B,C,D,E
 
 bench-dev:
 	$(PY) -m vasool.bench.report --split dev --n 120 --arms A,B,E

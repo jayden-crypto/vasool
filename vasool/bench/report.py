@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import os
 import sys
 from dataclasses import asdict
 from datetime import datetime
@@ -24,6 +23,7 @@ from vasool.bench.runner import ArmResult, run_arm
 from vasool.core import env
 from vasool.core.policy import Costs, Policy
 from vasool.core.types import rupees
+from vasool.diagnosis import providers
 from vasool.diagnosis.cache import ResponseCache
 from vasool.diagnosis.llm import LLMDiagnoser, RulesDiagnoser
 
@@ -163,14 +163,20 @@ def main(argv: list[str] | None = None) -> int:
     cache = ResponseCache(enabled=not args.no_cache)
     arms = build_arms(policy, set(args.arms.upper().split(",")), cache)
 
-    has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
-    if not has_key and any(a.diagnoser.name == "llm" for a in arms):
-        console.print(
-            "[yellow]No ANTHROPIC_API_KEY set.[/yellow] Model-backed arms will run "
-            f"from the response cache ({len(cache)} entries) and fall back to the "
-            "deterministic path on a miss. Every such decision is counted under "
-            "'Degraded decisions' below.\n"
-        )
+    provider = providers.resolve()
+    has_model = provider is not None
+    if any(a.diagnoser.name == "llm" for a in arms):
+        if has_model:
+            console.print(f"[dim]reasoning zone: {providers.describe()}[/dim]\n")
+        else:
+            console.print(
+                "[yellow]No model provider configured.[/yellow] Model-backed arms "
+                f"will run from the response cache ({len(cache)} entries) and fall "
+                "back to the deterministic path on a miss. Every such decision is "
+                "counted under 'Degraded decisions' below.\n"
+                "[dim]set one with VASOOL_PROVIDER — see README § Running the "
+                "model arms for free[/dim]\n"
+            )
 
     RUNS_DIR.mkdir(exist_ok=True)
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -195,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:
         "n_cases": len(batch.events),
         "at_risk_paise": batch.total_at_risk_paise,
         "generated_at": stamp,
-        "api_key_present": has_key,
+        "provider": providers.describe(),
         "arms": [asdict(r) for r in results],
     }
     out = Path(args.out) if args.out else RUNS_DIR / f"{stamp}-results.json"
