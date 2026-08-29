@@ -135,7 +135,19 @@ def render(results: list[ArmResult], console: Console, batch_label: str,
          else "0") for r in results])
     ops.add_row("[bold]Cases accounted for[/bold]", *[
         f"[bold]{r.closed_cases:,}/{r.n_cases:,}[/bold]" for r in results])
-    ops.add_row("Degraded decisions", *[f"{r.degraded_decisions:,}" for r in results])
+    ops.add_row("Degraded decisions", *[
+        (f"[red]{r.degraded_decisions:,}[/red]" if r.degraded_decisions
+         else "0") for r in results])
+    ops.add_row("Model calls / cache hits", *[
+        (f"{r.diagnosis_stats.get('api_calls', 0):,} / "
+         f"{r.diagnosis_stats.get('cache_hits', 0):,}")
+        if r.diagnosis_stats.get("api_calls") or r.diagnosis_stats.get("cache_hits")
+        else "—" for r in results])
+    ops.add_row("Schema failures / repairs", *[
+        (f"{r.diagnosis_stats.get('schema_failures', 0)} / "
+         f"{r.diagnosis_stats.get('repairs_succeeded', 0)}"
+         f" of {r.diagnosis_stats.get('repairs_attempted', 0)}")
+        if r.diagnosis_stats.get("api_calls") else "—" for r in results])
     ops.add_row("Ledger records", *[f"{r.ledger_records:,}" for r in results])
     ops.add_row("Ledger chain valid", *["yes" if r.ledger_valid else "NO" for r in results])
     ops.add_row("Settled out of band (uncredited)",
