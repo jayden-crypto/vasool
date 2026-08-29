@@ -143,6 +143,7 @@ class CircuitBreaker:
         self.consecutive_failures += 1
         if self.consecutive_failures >= self.threshold and self.opened_at is None:
             self.opened_at = time.monotonic()
+            self.skips_while_open = 0
             self.trips += 1
 
 

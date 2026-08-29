@@ -370,3 +370,28 @@ def test_breaker_closes_on_a_successful_probe():
     breaker.record_success()
     assert not breaker.is_open
     assert breaker.consecutive_failures == 0
+
+
+# --------------------------------------------------------------------------
+# Circuit breaker — not an invariant, but the bug it caused was expensive
+# --------------------------------------------------------------------------
+
+def test_breaker_reprobes_after_a_bounded_number_of_skips():
+    """A wall-clock-only cooldown swallows a batch run.
+
+    Regression: arms C and D once produced 803 and 562 fallback decisions
+    against 43 real calls, because thirty seconds of cooldown is hundreds of
+    decisions when nothing is waiting on the network.
+    """
+    from vasool.diagnosis.llm import CircuitBreaker
+
+    breaker = CircuitBreaker(threshold=2, cooldown_seconds=3600,
+                             probe_after_skips=5)
+    breaker.record_failure()
+    breaker.record_failure()
+    assert breaker.is_open
+
+    # With an hour of cooldown left, a batch must still get probes through.
+    skipped = sum(1 for _ in range(30) if breaker.is_open)
+    assert skipped < 30, "breaker never re-probed despite a long cooldown"
+    assert breaker.probes >= 4, f"only {breaker.probes} probes in 30 attempts"
