@@ -1,7 +1,7 @@
 PY := .venv/bin/python
 LEDGER := $(shell ls -t runs/*-E-*.jsonl 2>/dev/null | head -1)
 
-.PHONY: help setup test bench bench-dev bench-ledger bench-full bench-local bench-local-quick warm warm-local faults trace live live-inject clean
+.PHONY: help setup test bench bench-dev bench-ledger bench-full bench-local bench-local-quick warm warm-local ceiling faults trace live live-inject clean
 
 help:
 	@echo "Vasool — a recovery agent that is not allowed to move money"
@@ -13,6 +13,7 @@ help:
 	@echo "  make bench-local  model arms on a local Ollama model, at zero cost"
 	@echo "  make warm-local   pre-compute diagnoses in parallel into the cache"
 	@echo "  make bench-dev    fast pass on the dev split, for iterating"
+	@echo "  make ceiling      how much of the batch is decidable at all"
 	@echo "  make faults       fault injection, including the prompt-injection demo"
 	@echo "  make trace        render the most recent audit ledger"
 	@echo "  make live         one real recovery against Razorpay test mode"
@@ -55,6 +56,9 @@ bench-dev:
 
 bench-ledger:
 	$(PY) -m vasool.bench.report --split test --arms E --ledger
+
+ceiling:
+	$(PY) -m vasool.bench.ceiling --split test
 
 faults:
 	$(PY) -m vasool.faults.demo

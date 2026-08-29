@@ -242,13 +242,34 @@ any concept of quiet hours.
 
 ### Where the model is supposed to earn its place
 
-The rules baseline classifies at **86.6%**. It is not a strawman — it has a real
-keyword table over issuer prose, an attempt cap, and send-time scheduling. It
-fails in one specific way: 10% of events carry a reason code that contradicts
-the issuer's own message, and a lookup table believes the code.
+An accuracy figure is meaningless without a ceiling, so the repo computes one:
 
-That is the gap the model is there to close, and `make bench-full` is what
-settles whether it does.
+```bash
+make ceiling
+```
+
+| | Test split, 500 cases |
+|---|---:|
+| Reason code states the cause outright | 56.4% |
+| Cause only in the issuer's free text | 32.4% |
+| **Reason code contradicts the message** | **11.2%** |
+| Undecidable from the evidence at all | 1.8% |
+| **Classification ceiling** | **98.2%** |
+| Rules baseline achieves | 86.6% |
+
+The 1.8% is real and irreducible: `"do not honour"` is used by issuers for both
+a thin balance and a risk decline, and the message bank uses it under both
+causes deliberately. On those cases the correct answer is `UNKNOWN` with low
+confidence, and no classifier of any size can do better.
+
+That leaves **11.6 points of headroom, sitting almost exactly on top of the
+11.2% of cases where the reason code lies.** There is a test asserting the
+baseline's misses are concentrated there — if they ever move, the argument for
+having a model at all needs rewriting.
+
+So the question the model arms answer is narrow and falsifiable: *how much of
+those 11.6 points can a model recover by weighing an issuer's own words against
+a machine code that disagrees with them?*
 
 ---
 

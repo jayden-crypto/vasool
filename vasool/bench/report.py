@@ -18,6 +18,7 @@ from rich.console import Console
 from rich.table import Table
 
 from vasool.bench.arms.base import Arm, CronDiagnoser
+from vasool.bench.ceiling import analyse
 from vasool.bench.generator import generate
 from vasool.bench.runner import ArmResult, run_arm
 from vasool.core import env
@@ -62,7 +63,8 @@ def _fmt_pct(value: float | None) -> str:
     return "—" if value is None else f"{value * 100:.1f}%"
 
 
-def render(results: list[ArmResult], console: Console, batch_label: str) -> None:
+def render(results: list[ArmResult], console: Console, batch_label: str,
+           batch_split: str = "test", batch_n: int | None = None) -> None:
     money = Table(title=f"Recovery — {batch_label}", header_style="bold")
     money.add_column("Metric", no_wrap=True)
     for r in results:
@@ -82,6 +84,12 @@ def render(results: list[ArmResult], console: Console, batch_label: str) -> None
         ("Action spend", [rupees(r.action_spend_paise) for r in results]),
         ("Diagnosis accuracy", [_fmt_pct(r.classification_accuracy) for r in results]),
     ]
+    ceiling = analyse(batch_split, batch_n)["ceiling"]
+    rows.append((
+        f"  of a {ceiling * 100:.1f}% ceiling",
+        [("—" if r.classification_accuracy is None
+          else f"{r.classification_accuracy / ceiling * 100:.1f}%") for r in results],
+    ))
     for label, values in rows:
         money.add_row(label, *values)
     console.print(money)
@@ -193,7 +201,7 @@ def main(argv: list[str] | None = None) -> int:
         f"{batch.split} split · seed {batch.seed} · {len(batch.events)} cases · "
         f"{rupees(batch.total_at_risk_paise)} at risk"
     )
-    render(results, console, label)
+    render(results, console, label, batch.split, len(batch.events))
 
     payload = {
         "split": batch.split,
