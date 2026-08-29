@@ -293,7 +293,9 @@ def describe() -> str:
     if not kind:
         kind = "anthropic" if os.environ.get("ANTHROPIC_API_KEY") else "none"
     if kind == "ollama":
-        return f"ollama · {os.environ.get('VASOOL_MODEL', 'qwen2.5:7b')} (local, free)"
+        return (f"ollama · {os.environ.get('VASOOL_MODEL', 'qwen2.5:7b')} "
+                f"@ {os.environ.get('VASOOL_OLLAMA_URL', 'http://localhost:11434')} "
+                "(local, free)")
     if kind in ("openai_compat", "openai-compat"):
         return (f"openai-compat · {os.environ.get('VASOOL_MODEL', '?')} @ "
                 f"{os.environ.get('VASOOL_BASE_URL', '?')}")
@@ -309,9 +311,13 @@ def resolve() -> Optional[Provider]:
         kind = "anthropic" if os.environ.get("ANTHROPIC_API_KEY") else ""
 
     if kind == "ollama":
+        # Deliberately NOT VASOOL_BASE_URL. Sharing one URL variable across
+        # providers means a leftover value from the last provider silently
+        # builds nonsense like `groq.com/openai/v1/api/chat`, and the only
+        # symptom is every case quietly degrading to the rules path.
         return OllamaProvider(
             model=os.environ.get("VASOOL_MODEL", "qwen2.5:7b"),
-            base_url=os.environ.get("VASOOL_BASE_URL", "http://localhost:11434"),
+            base_url=os.environ.get("VASOOL_OLLAMA_URL", "http://localhost:11434"),
         )
     if kind in ("openai_compat", "openai-compat"):
         base_url = os.environ.get("VASOOL_BASE_URL")
