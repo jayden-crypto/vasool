@@ -73,12 +73,21 @@ The reported accuracy compares the arm's first classification against hidden
 ground truth. Later re-diagnoses within the same case are not scored, so the
 number describes cold-start judgment, not how well an arm updates.
 
-## What the model arms cost, and what that implies
+## Which model produced which numbers
 
-Arms C and D issue one model call per decision. Every response is cached by
-evidence digest in `cache/llm_responses.json`, so a replay is free and
-byte-identical — but the first run is not, and a fresh batch with a different
-seed needs a fresh spend.
+The reasoning zone is provider-agnostic, so the model arms can be run on a
+frontier model, a hosted free tier, or a 7B on a laptop. **The results are not
+interchangeable, and the results file records which provider produced them.**
+
+A smaller model will classify worse. That is expected and it is worth stating
+plainly rather than burying: if arm D on a local 7B beats the rules baseline,
+the finding is that the architecture works with a cheap model. If it does not,
+the finding is that this task needs a bigger one. Both are results; neither is
+a reason to quietly swap the provider and reuse the old numbers.
+
+Arms C and D issue one model call per decision. Responses cache by evidence
+digest in `cache/llm_responses.json`, so a replay is free and byte-identical —
+but the first run is not, and a fresh seed needs a fresh run.
 
 ## Not addressed at all
 

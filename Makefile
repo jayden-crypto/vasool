@@ -1,7 +1,7 @@
 PY := .venv/bin/python
 LEDGER := $(shell ls -t runs/*-E-*.jsonl 2>/dev/null | head -1)
 
-.PHONY: help setup test bench bench-dev bench-ledger bench-full bench-local bench-local-quick faults trace live live-inject clean
+.PHONY: help setup test bench bench-dev bench-ledger bench-full bench-local bench-local-quick warm warm-local faults trace live live-inject clean
 
 help:
 	@echo "Vasool — a recovery agent that is not allowed to move money"
@@ -11,6 +11,7 @@ help:
 	@echo "  make bench        four-arm benchmark on the held-out split"
 	@echo "  make bench-full   same, with model-backed arms (needs a provider)"
 	@echo "  make bench-local  model arms on a local Ollama model, at zero cost"
+	@echo "  make warm-local   pre-compute diagnoses in parallel into the cache"
 	@echo "  make bench-dev    fast pass on the dev split, for iterating"
 	@echo "  make faults       fault injection, including the prompt-injection demo"
 	@echo "  make trace        render the most recent audit ledger"
@@ -34,6 +35,15 @@ bench-full:
 bench-local:
 	VASOOL_PROVIDER=ollama VASOOL_MODEL=$${VASOOL_MODEL:-qwen2.5:7b} \
 	$(PY) -m vasool.bench.report --split test --arms A,B,C,D,E --ledger
+
+# Compute every first diagnosis in parallel and cache it. On a laptop-hosted
+# model this is most of the wall clock, and it is embarrassingly parallel.
+warm:
+	$(PY) -m vasool.diagnosis.warm --split test --workers $${WORKERS:-4}
+
+warm-local:
+	VASOOL_PROVIDER=ollama VASOOL_MODEL=$${VASOOL_MODEL:-qwen2.5:7b} \
+	$(PY) -m vasool.diagnosis.warm --split test --workers $${WORKERS:-3}
 
 # Fast sanity pass on the model arms before spending a full run.
 bench-local-quick:
