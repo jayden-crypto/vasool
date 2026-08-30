@@ -234,7 +234,7 @@ zero — never twice.
 
 ---
 
-## Where the model earns its place, and where it does not
+## Where the model was supposed to earn its place, and did not
 
 The rules baseline (`vasool/diagnosis/fallback.py`) classifies at **86.6%** on
 the held-out split. It is the same code as the degraded path, which is
@@ -250,11 +250,33 @@ It fails in one specific, interesting way. The benchmark generates three evidenc
 styles: 55% clean reason codes, 35% generic `payment_failed` with the cause only
 in issuer prose, and **10% where the reason code contradicts the message**. A
 lookup table believes the code. Weighing a machine code against free text that
-disagrees with it is the thing a language model is actually good at, and it is
-the entire justification for the model being in the architecture.
+disagrees with it is the thing a language model is supposed to be good at, and
+it was the entire justification for putting one in the architecture.
 
-`make bench-full` is what settles whether it delivers. If it does not, the
-benchmark says so and the right answer is to ship arm E.
+**It did not deliver.** `qwen2.5:7b` scored **52.0%** against the baseline's
+81.0% on the N=100 run — 29 points *below* the lookup table, on a batch whose
+ceiling is 98.2%. The benchmark was built to be able to say that, and it said it.
+
+Two things follow for the architecture, and they point in opposite directions.
+
+The boundary is vindicated by the model failing rather than despite it. Arm D
+recorded zero harms while carrying a diagnoser that was wrong half the time;
+arm C, the same model with no kernel, produced 41 double-collect attempts, 11
+retries against risk declines and ₹574 actually double-charged. `I6` alone
+refused 934 futile retries the model proposed, deciding from raw evidence rather
+than the model's classification — the exact scenario that invariant was written
+for, arriving unprompted.
+
+The reasoning zone is not vindicated. On this task, at this model size, the
+deterministic taxonomy is simply better, and arm E — rules behind the same
+kernel — wins on net value by more than 2x. The right thing to ship today is
+arm E. The model arm stays in the repository because the comparison is the
+finding, and because `VASOOL_PROVIDER` makes re-running it against a stronger
+model a configuration change rather than a rewrite.
+
+This is worth stating plainly rather than softening: the hypothesis this project
+was designed around is unsupported by its own measurement. What survived is the
+part that was supposed to be the plumbing.
 
 ---
 
