@@ -87,6 +87,24 @@ The reported accuracy compares the arm's first classification against hidden
 ground truth. Later re-diagnoses within the same case are not scored, so the
 number describes cold-start judgment, not how well an arm updates.
 
+## The model arms measure a 7B, not language models
+
+Arms C and D ran on `qwen2.5:7b` locally, because the hosted free tiers cap at
+roughly 57 diagnoses per day (200,000 tokens, and a reasoning model spends
+~3,500 per call) and local inference on the test machine runs at 82 seconds per
+diagnosis. N=100 rather than 500 for the same reason.
+
+**Do not read "the model scored 52%" as "language models score 52%."** A
+frontier model may well clear the 81% rules baseline. The architecture is
+unchanged either way — `VASOOL_PROVIDER` selects the provider and
+`make bench-full` re-runs the identical comparison. Until someone runs it, the
+supportable claim is narrow: on this task, this small model, behind this
+prompt, lost to a good taxonomy.
+
+What that does *not* qualify: the kernel results. Arm C versus arm D is a
+comparison between two configurations of the same model, so the harm reduction
+it demonstrates holds regardless of how good the model is.
+
 ## Which model produced which numbers
 
 The reasoning zone is provider-agnostic, so the model arms can be run on a

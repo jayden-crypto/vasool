@@ -187,6 +187,8 @@ class LLMDiagnoser:
     ) -> tuple[ActionProposal, bool]:
         self.stats.decisions += 1
         repair_round = 1 if repair_for is not None else 0
+        if repair_for is not None:
+            self.stats.repairs_attempted += 1
 
         raw = self._obtain(case, now, customer_reply, repair_for, repair_round)
         if raw is None:
@@ -205,6 +207,9 @@ class LLMDiagnoser:
             )
 
         if repair_for is not None:
+            # Counted here, not in _obtain, so a cached repair still registers
+            # as an attempt. Otherwise successes outnumber attempts, which is
+            # how this shipped a report claiming "531 of 46".
             self.stats.repairs_succeeded += 1
         return self._to_action(raw, case, now), False
 
@@ -242,8 +247,8 @@ class LLMDiagnoser:
         messages: list[dict[str, Any]] = [
             {"role": "user", "content": prompt_mod.render(dict(bundle))}
         ]
-        if repair_for is not None:
-            self.stats.repairs_attempted += 1
+        messages_repair = repair_for is not None
+        if messages_repair:
             messages.append({
                 "role": "assistant",
                 "content": "I proposed an action that was rejected.",

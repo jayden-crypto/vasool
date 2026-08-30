@@ -4,16 +4,24 @@
 
 A payment fails. Something has to work out *why* — issuers describe the same
 condition in a dozen different ways, and a third of declines arrive with a
-useless reason code and the real cause sitting in free text. That is a language
-problem, and a model is good at it.
+useless reason code and the real cause buried in free text. That looks like a
+language problem.
 
 Then something has to decide whether the proposed fix is allowed to touch
 money. That is not a language problem, and a model is the wrong thing to ask.
 
-So Vasool splits them. The model reasons without authority and emits a typed
-proposal. A deterministic kernel of eight invariants holds the authority and
-decides. Every decision is written to a hash-chained ledger *before* it
-executes.
+So Vasool splits them. Whatever does the reasoning holds no credentials and
+emits a typed proposal. A deterministic kernel of eight invariants holds the
+authority and decides. Every decision is written to a hash-chained ledger
+*before* it executes.
+
+**The split is the point, and it survived being tested against my own
+hypothesis.** I expected a language model to beat a rules engine at reading
+contradictory issuer evidence. Measured, a 7B scored 52% against the rules
+baseline's 81% — and the kernel absorbed it, recording zero harms while the
+same model without a kernel double-charged customers. The interesting result is
+not that the model helped. It is that the architecture held when the model did
+not. [Full numbers below.](#arms-c-and-d--measured-and-the-model-lost)
 
 ---
 
@@ -72,27 +80,70 @@ there. Its ₹2,76,500 of harm eats more than half its gross. The kernel gives
 back three points of recovery, spends 34% fewer actions and 45% fewer contacts,
 and **roughly doubles net value**.
 
+> The five-arm run including the model arms is below, at N=100. This table is
+> the 500-case run of the three arms that need no model.
+>
 > Read [LIMITATIONS.md](LIMITATIONS.md) before quoting any of this. The batch is
 > simulated; the generator that produced it is committed at
 > `config/generator.yaml` so you can check it was not shaped to flatter the
 > agent. Relative comparisons are the finding. Absolute rates are not a forecast.
 
-### Arms C and D — and why the model is swappable
+### Arms C and D — measured, and the model lost
 
-Arms **C** (model with direct write access, no kernel) and **D** (model + kernel)
-are implemented and run with `make bench-full`. Both use the **same provider,
-model, prompt and cache**. The only difference between them is the kernel. That
-is the whole experiment.
+All five arms, N=100, held-out seed, `qwen2.5:7b` running locally on a laptop.
+Arms C and D share model, prompt, effort and cache; the only difference between
+them is the kernel.
 
-The reasoning zone is deliberately provider-agnostic — see
-`vasool/diagnosis/providers.py`. That is not a convenience feature, it is the
-thesis being cashed out: **the model holds no authority, so which model sits
-there is a swappable detail.** If the architecture only worked with a frontier
-model, the kernel would not be carrying its weight.
+| | A cron | B rules | C raw-agent | D vasool | **E rules+kernel** |
+|---|---:|---:|---:|---:|---:|
+| Recovery rate | 30.0% | 48.0% | 31.0% | 16.0% | 46.0% |
+| Value recovered | ₹48,541 | ₹94,988 | ₹67,506 | ₹32,156 | ₹91,612 |
+| Actions executed | 259 | 374 | 440 | 63 | 251 |
+| Recovered per action | ₹187 | ₹254 | ₹153 | **₹510** | ₹365 |
+| Priced harm | ₹2,325 | ₹60,000 | ₹20,785 | **₹0** | ₹9,600 |
+| **Net value** | ₹46,086 | ₹34,839 | ₹45,867 | ₹32,117 | **₹81,908** |
+| **Diagnosis accuracy** | — | **81.0%** | **52.0%** | **52.0%** | **81.0%** |
 
-Every response caches to `cache/llm_responses.json` by evidence digest, so a
-replay is free and byte-identical, and the cache is committed — a reviewer can
-reproduce the run with no account of any kind.
+**The model lost, and badly.** 52% classification against the rules baseline's
+81%, on a batch whose ceiling is 98.2%. It did not close the headroom; it fell
+29 points below the floor. The hypothesis this repository was built to test —
+that a language model reading an issuer's own words beats a lookup table when
+the two disagree — is **not supported by a 7B model on this task.**
+
+Three things that follow, in order of how much they matter:
+
+**The kernel works, and it works hardest when the model is worst.** Arm D
+recorded zero harms of any kind. Arm C — same model, same prompt, no kernel —
+produced 41 double-collect attempts, 11 retries against issuer risk declines,
+₹20,785 of priced harm, and ₹574 actually double-charged to customers. That
+comparison is the whole reason arm C exists, and it is starker than it would
+have been with a model that guessed well.
+
+**`I6` blocked 934 futile retries in arm D alone.** The model repeatedly
+proposed replaying instruments the error codes prove are dead. The kernel
+refused every one, using its own reading of the raw evidence rather than the
+model's confident classification. This is also *why* D recovers so little: the
+model spends its attempt budget on impossible actions, cases hit the cap, and
+17 abandon at the horizon. The kernel is protecting the merchant from the model.
+
+**Arm E — the deterministic taxonomy behind the same kernel — wins on every
+measure that matters**, at ₹81,908 net, more than double any other arm. On this
+evidence the right thing to ship is the kernel with the rules engine, and to
+revisit the model only with something considerably stronger than a 7B.
+
+So the finding is not the one I set out to prove, and it is the more useful one:
+
+> The authority boundary is what carries the architecture. The intelligence
+> behind it is genuinely swappable — and on this task, swapping in a small
+> local model makes things worse, not better.
+
+**What would change this.** The model arms were run on `qwen2.5:7b` because the
+hosted free tiers cap at roughly 57 diagnoses per day (200k tokens, and a
+reasoning model spends ~3.5k per call), and local inference on the test machine
+runs at 82 seconds per diagnosis. A frontier model may well clear 81% — the
+architecture is unchanged either way, `VASOOL_PROVIDER` selects it, and
+`make bench-full` re-runs the same comparison. Until someone does that, the
+honest statement is that **this result measures a 7B, not language models.**
 
 ---
 
