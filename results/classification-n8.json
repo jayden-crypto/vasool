@@ -1,0 +1,23 @@
+{
+  "split": "test",
+  "n": 8,
+  "ceiling": 0.875,
+  "rows": [
+    {
+      "model": "rules baseline (no model)",
+      "correct": {
+        "clean_code": 3,
+        "all": 7,
+        "generic_prose": 4
+      },
+      "total": {
+        "clean_code": 3,
+        "all": 8,
+        "generic_prose": 5
+      },
+      "stats": {},
+      "errors": {},
+      "seconds": 0.0
+    }
+  ]
+}
