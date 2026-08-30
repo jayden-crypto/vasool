@@ -159,28 +159,46 @@ ollama pull qwen2.5:7b
 make bench-local
 ```
 
-Runs entirely on your machine, offline, at zero cost. Ollama's native API does
-grammar-constrained decoding against the schema in
-`vasool/diagnosis/schema.py`, which is why a 7B model produces valid proposals
-nearly every time rather than nearly often.
+Runs entirely on your machine, offline, at zero cost, and with no quota. Ollama's
+native API does grammar-constrained decoding against the schema in
+`vasool/diagnosis/schema.py`, which is why a 7B produces valid proposals nearly
+every time rather than nearly often — across the published run, 3 schema
+failures in 541 calls.
+
+**This is how the published numbers were produced**, and it is the reason
+anyone can reproduce them without an account.
+
+Budget the wall clock honestly: a five-arm N=100 run took **12 hours** on an
+M2 with 16GB, at ~82 seconds per diagnosis under sustained load. The cold
+pre-flight measured 41s; it halves once the machine is warm and under memory
+pressure. Arm C dominates that cost, because without a kernel it takes far more
+decisions per case than the gated arms do.
 
 ### Hosted free tiers
 
-Any OpenAI-shaped endpoint works. Set three variables and run `make bench-full`:
+Any OpenAI-shaped endpoint works. Set the variables and run `make bench-full`:
 
 | Provider | `VASOOL_BASE_URL` | Notes |
 |---|---|---|
-| Groq | `https://api.groq.com/openai/v1` | Free tier, no card. Fastest option by a wide margin. |
-| Google AI Studio | `https://generativelanguage.googleapis.com/v1beta/openai` | Free tier, no card. |
+| Groq | `https://api.groq.com/openai/v1` | No card. **200,000 tokens/day per model.** |
+| Google AI Studio | `https://generativelanguage.googleapis.com/v1beta/openai` | No card. |
 | OpenRouter | `https://openrouter.ai/api/v1` | Models with a `:free` suffix cost nothing. |
 | Cerebras | `https://api.cerebras.ai/v1` | Free tier. |
 
 ```bash
 VASOOL_PROVIDER=openai_compat
 VASOOL_BASE_URL=https://api.groq.com/openai/v1
-VASOOL_MODEL=llama-3.3-70b-versatile
+VASOOL_MODEL=openai/gpt-oss-120b
 VASOOL_API_KEY=<your free key>
 ```
+
+**Check the daily token cap before planning a run.** The binding limit on a
+free tier is tokens per day, not requests, and it is easy to miss: Groq allows
+200,000 per model per day, a reasoning model spends ~3,500 per diagnosis, so
+that is roughly **57 diagnoses a day**. A five-arm N=200 run needs about 850.
+Attempting it burns the quota and returns a report full of degraded decisions
+rather than an error — which is exactly what happened here before the run moved
+to local inference.
 
 ### With an Anthropic key
 
@@ -295,7 +313,7 @@ The harm ledger is measured by the environment, independently of the arm.
 The simulator notices a 2am SMS whether or not the architecture that sent it has
 any concept of quiet hours.
 
-### Where the model is supposed to earn its place
+### The ceiling the model had to clear
 
 An accuracy figure is meaningless without a ceiling, so the repo computes one:
 
@@ -322,9 +340,16 @@ That leaves **11.6 points of headroom, sitting almost exactly on top of the
 baseline's misses are concentrated there — if they ever move, the argument for
 having a model at all needs rewriting.
 
-So the question the model arms answer is narrow and falsifiable: *how much of
-those 11.6 points can a model recover by weighing an issuer's own words against
-a machine code that disagrees with them?*
+So the question was narrow and falsifiable: *how much of those 11.6 points can
+a model recover by weighing an issuer's own words against a machine code that
+disagrees with them?*
+
+**Answered: none of them.** `qwen2.5:7b` scored 52.0% — not 11.6 points above
+the baseline but 29 points below it. The full table is in
+[Arms C and D](#arms-c-and-d--measured-and-the-model-lost). Having the ceiling
+computed first is what makes that statement precise rather than a vibe: the
+model is not close to the limit of what the evidence allows, it is far short of
+what a lookup table already achieves.
 
 ---
 
@@ -366,13 +391,15 @@ vasool/
 │   ├── invariants.py      I1–I8, one function each
 │   ├── raw_evidence.py    facts the kernel derives itself
 │   ├── gate.py            orchestration + the live settlement read
-│   └── tests/             48 unit + property tests
+│   └── tests/             unit + Hypothesis property tests
 ├── diagnosis/         ← the reasoning zone. holds no credentials.
 │   ├── schema.py          the typed contract across the boundary
 │   ├── prompt.py          evidence bundle; untrusted text is fenced
-│   ├── llm.py             Claude, circuit breaker, bounded repair
+│   ├── llm.py             circuit breaker, bounded repair, degraded path
+│   ├── providers.py       Anthropic · any OpenAI-shaped endpoint · Ollama
 │   ├── fallback.py        the rules baseline *and* the degraded path
-│   └── cache.py           committed responses → replay without a key
+│   ├── cache.py           committed responses → replay without a key
+│   └── warm.py            parallel pre-computation of first diagnoses
 ├── executor/          ← the only modules that hold credentials
 │   ├── executor.py        I8, and unknown-outcome reconciliation
 │   ├── ledger.py          hash-chained, append-only, write-ahead
@@ -383,17 +410,24 @@ vasool/
 │   ├── hidden.py          hidden state + common random numbers
 │   ├── environment.py     the referee; measures harms independently
 │   ├── arms/              A cron · B rules · C raw-agent · D vasool · E rules+gate
+│   ├── ceiling.py         how much of the batch is decidable at all
+│   ├── runner.py          scores one arm, credits nothing it did not earn
 │   └── report.py          the tables above
 ├── faults/            ← nine ways to break it on purpose
+├── core/              ← value types, policy loading, .env
 └── cli/               ← trace (ledger viewer) · live (test-mode demo)
 config/                ← policy · costs · priors · generator, all committed
+results/               ← the committed result files behind every table above
 ```
 
 ## Configuration
 
 | Variable | Purpose |
 |---|---|
-| `ANTHROPIC_API_KEY` | Enables arms C and D. Without it they run from cache and degrade to the rules path, counted openly as degraded decisions. |
+| `VASOOL_PROVIDER` | `ollama`, `openai_compat`, or `anthropic`. Unset falls back to `anthropic` if a key is present, otherwise the model arms run from cache and degrade to the rules path — counted openly as degraded decisions. |
+| `VASOOL_MODEL` | Model id for the selected provider. The published run used `qwen2.5:7b`. |
+| `VASOOL_OLLAMA_URL` | Ollama endpoint. Deliberately separate from `VASOOL_BASE_URL`, which is for OpenAI-shaped hosts only. |
+| `ANTHROPIC_API_KEY` | Used when `VASOOL_PROVIDER` is unset or `anthropic`. |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Test keys for `make live`. The client refuses to start on a `rzp_live_` key. |
 | `VASOOL_MCP_CMD` | How to launch `razorpay-mcp-server` for the MCP backend. |
 | `VASOOL_MODEL` / `VASOOL_EFFORT` | Model id and effort for the diagnosis layer. |
