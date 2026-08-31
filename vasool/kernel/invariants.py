@@ -29,7 +29,7 @@ import yaml
 from vasool.core.policy import Costs, Policy
 from vasool.core.types import (
     CONTACT_INTERVENTIONS,
-    MONEY_MOVING,
+    GATED_INTERVENTIONS,
     RETRY_INTERVENTIONS,
     ActionProposal,
     CaseState,
@@ -86,7 +86,7 @@ def i1_no_double_collect(ctx: GateContext) -> Verdict:
     The check reads *live* provider state rather than the case's own belief,
     because the case's belief is exactly what is stale in this scenario.
     """
-    if ctx.proposal.intervention not in MONEY_MOVING:
+    if ctx.proposal.intervention not in GATED_INTERVENTIONS:
         return Verdict.allow()
     if ctx.live_settled or ctx.case.settled:
         return Verdict.deny(
@@ -114,7 +114,7 @@ def i2_idempotent_write(ctx: GateContext) -> Verdict:
     and is refused, while a genuinely new decision computes a different one and
     proceeds.
     """
-    if ctx.proposal.intervention not in MONEY_MOVING:
+    if ctx.proposal.intervention not in GATED_INTERVENTIONS:
         return Verdict.allow()
     key = action_key(ctx.proposal)
     if key in ctx.case.executed_keys:
@@ -177,7 +177,7 @@ def i3_amount_conserving(ctx: GateContext) -> Verdict:
             )
         return Verdict.allow()
 
-    if proposal.intervention in MONEY_MOVING and proposal.amount_paise != order:
+    if proposal.intervention in GATED_INTERVENTIONS and proposal.amount_paise != order:
         return Verdict.deny(
             Denial.AMOUNT_MISMATCH, "I3",
             f"proposed {proposal.amount_paise} != order {order}",
@@ -369,7 +369,7 @@ def i7_stopping_rule(ctx: GateContext) -> Verdict:
                 Denial.HORIZON_EXCEEDED, "I7", f"past {p.horizon_days}d horizon",
             )
 
-    if ctx.proposal.intervention not in MONEY_MOVING:
+    if ctx.proposal.intervention not in GATED_INTERVENTIONS:
         return Verdict.allow()
 
     if case.attempts >= p.max_money_actions:

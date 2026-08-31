@@ -3,7 +3,7 @@
   "seed": 20260905,
   "n_cases": 500,
   "at_risk_paise": 92399500,
-  "generated_at": "20260831-134025",
+  "generated_at": "20260831-134420",
   "provider": "ollama \u00b7 qwen2.5:7b @ http://localhost:11434 (local, free)",
   "arms": [
     {
@@ -253,6 +253,7 @@
         "unknown_outcomes": 0,
         "reconciled_landed": 0,
         "reconciled_absent": 0,
+        "unresolved": 0,
         "provider_errors": 0
       },
       "classification_correct": 0,
@@ -556,6 +557,7 @@
         "unknown_outcomes": 0,
         "reconciled_landed": 0,
         "reconciled_absent": 0,
+        "unresolved": 0,
         "provider_errors": 0
       },
       "classification_correct": 433,
@@ -852,6 +854,7 @@
         "unknown_outcomes": 0,
         "reconciled_landed": 0,
         "reconciled_absent": 0,
+        "unresolved": 0,
         "provider_errors": 0
       },
       "classification_correct": 433,

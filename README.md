@@ -310,7 +310,13 @@ randomness — every one is property-tested in isolation.
 | **I7** | `stopping_rule` | The unbounded loop. Horizon, attempt cap, and an expected-value floor — three independent termination guarantees. |
 | **I8** | `audit_before_action` | The gap between deciding and acting. Enforced at the executor: no ledger receipt, no action. |
 
-Two design decisions inside the kernel are worth more than the list:
+What the kernel bounds is `GATED_INTERVENTIONS` — money movement *and* anything
+else expensive. `HANDOFF_HUMAN` moves no money but costs ₹50, a hundred times a
+payment link; it used to sit outside that set and skip I1, I2 and I7's caps, so
+a human could be paged to chase a customer who had already paid. A test now
+asserts every intervention priced at or above ₹50 is gated.
+
+Three design decisions inside the kernel are worth more than the list:
 
 **The kernel does not trust the model's classification.** Where a provider error
 code settles a question, `vasool/kernel/raw_evidence.py` reads it directly. A

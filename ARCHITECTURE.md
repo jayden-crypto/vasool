@@ -80,6 +80,23 @@ sanitiser, not an invariant. The number has to reach I3 to prove I3 stops it.
 Eight invariants. Seven are pure functions over a `GateContext`; the eighth
 governs ordering and lives at the executor.
 
+### What the kernel bounds
+
+`GATED_INTERVENTIONS`, not `MONEY_MOVING`. The distinction was a real bug: an
+adversarial review found that `HANDOFF_HUMAN` — which moves no money and so sat
+outside `MONEY_MOVING` — skipped I1, I2 and I7's caps entirely, while being the
+priciest action in `costs.yaml` at ₹50, a hundred times a payment link.
+
+The demonstrated consequence was a human being paged to chase a customer who had
+already paid: precisely the harm I1 exists to prevent, arriving through the one
+door I1 was not watching. In receivables that is the headline compliance
+failure, not an edge case.
+
+*"Moves money"* was the wrong predicate. *"Consumes something we cannot get
+back"* is the right one, and there is a test asserting every intervention priced
+at or above ₹50 is inside the gated set — so adding an expensive action later
+cannot silently reintroduce the hole.
+
 ### I1 — `no_double_collect`
 
 **Prevents:** collecting money that already arrived.

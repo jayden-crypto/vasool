@@ -95,6 +95,21 @@ MONEY_MOVING: frozenset[Intervention] = RETRY_INTERVENTIONS | {
     Intervention.MANDATE_REREGISTER,
 }
 
+#: Everything the kernel bounds — money movement *and* anything else expensive.
+#:
+#: HANDOFF_HUMAN moves no money, so it was excluded from MONEY_MOVING and
+#: therefore skipped by I1, I2 and I7's caps — while being the single priciest
+#: action in costs.yaml at ₹50, a hundred times a payment link. An adversarial
+#: review demonstrated a human being paged to chase a customer who had already
+#: paid: the exact harm I1 exists to prevent, arriving through the one door I1
+#: was not watching.
+#:
+#: "Moves money" was the wrong predicate. "Consumes something we cannot get
+#: back" is the right one.
+GATED_INTERVENTIONS: frozenset[Intervention] = MONEY_MOVING | {
+    Intervention.HANDOFF_HUMAN,
+}
+
 
 class Channel(str, Enum):
     NONE = "NONE"

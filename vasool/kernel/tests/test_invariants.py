@@ -515,3 +515,55 @@ def test_adjudication_leaves_agreeing_evidence_alone():
     ev = f.event(error=f.error(reason="card_expired",
                                issuer_message="Card has expired"))
     assert classify_adjudicated(ev).failure_class == classify(ev).failure_class
+
+
+# --------------------------------------------------------------------------
+# GATED_INTERVENTIONS — the bypass an adversarial review found
+# --------------------------------------------------------------------------
+
+def _handoff_ctx(settled=False, attempts=0, amount=None):
+    case = f.case()
+    case.attempts = attempts
+    return ctx(
+        proposal=f.proposal(Intervention.HANDOFF_HUMAN, amount_paise=amount,
+                            channel=Channel.WHATSAPP),
+        case=case, live_settled=settled,
+    )
+
+
+def test_i1_will_not_page_a_human_for_a_customer_who_already_paid():
+    """The costliest action was skipping the invariant against dunning payers.
+
+    HANDOFF_HUMAN moves no money, so it sat outside MONEY_MOVING and I1 ignored
+    it — while costing ₹50, a hundred times a payment link. Chasing someone who
+    has already paid is the headline compliance failure in receivables.
+    """
+    verdict = inv.i1_no_double_collect(_handoff_ctx(settled=True))
+    assert not verdict.allowed
+    assert Denial.ALREADY_COLLECTED in verdict.denials
+
+
+def test_i7_attempt_cap_binds_the_most_expensive_intervention():
+    verdict = inv.i7_stopping_rule(
+        _handoff_ctx(attempts=POLICY.max_money_actions))
+    assert not verdict.allowed
+    assert Denial.ATTEMPT_CAP_REACHED in verdict.denials
+
+
+def test_i3_pins_the_amount_shown_on_a_handoff_record():
+    """An operator reads this number, so an attacker must not choose it."""
+    verdict = inv.i3_amount_conserving(_handoff_ctx(amount=2500))
+    assert not verdict.allowed
+    assert Denial.AMOUNT_MISMATCH in verdict.denials
+
+
+def test_every_expensive_intervention_is_gated():
+    """Regression: 'moves money' was the wrong predicate for 'must be bounded'."""
+    from vasool.core.types import GATED_INTERVENTIONS
+    costs = COSTS.action_cost_paise
+    expensive = {
+        Intervention(name) for name, paise in costs.items()
+        if paise >= 50 and name in Intervention.__members__
+    }
+    assert expensive <= GATED_INTERVENTIONS, (
+        f"ungated but expensive: {expensive - GATED_INTERVENTIONS}")
