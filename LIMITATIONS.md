@@ -293,10 +293,14 @@ rather than "prevented".
 Each of these was written more strongly than the implementation warranted, and
 found by adversarial review rather than by me.
 
-**The ledger is corruption-evident, not tamper-evident.** Unkeyed SHA-256, no
-signature, no external anchor. Anyone with write access can rewrite a record and
-recompute the rest, and `verify()` has no independently-known tip to check
-against. Needs an HMAC or an anchor; neither is built.
+**The ledger is corruption-evident by default, tamper-evident only if you key
+it.** Setting `VASOOL_LEDGER_KEY` switches the chain to HMAC-SHA256, so an
+attacker who rewrites a record cannot recompute the ones after it. That is a
+real improvement and not a complete answer: a key living in the same
+environment as the process buys very little, and `verify()` still has no
+independently-known tip to check against. Anchoring one externally is not built,
+and the default remains unkeyed because a key with nowhere safe to live is
+theatre.
 
 **The MCP reconcile lookup cannot prove absence on a busy account.** The toolset
 offers no filtered lookup, so it fetches a page and scans. It now raises rather

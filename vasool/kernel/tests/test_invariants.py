@@ -652,3 +652,41 @@ def test_the_key_survives_the_case_moving_on_after_execution():
     case.attempts += 1
     assert inv.action_key(p) == original, "a replay lost its identity"
     assert not inv.i2_idempotent_write(ctx(proposal=p, case=case)).allowed
+
+
+def test_an_hmac_chain_cannot_be_forged_without_the_key():
+    """Unkeyed, an attacker with write access rewrites a record and recomputes
+    the rest. Keyed, they cannot — which is the difference between
+    corruption-evident and tamper-evident."""
+    import importlib
+    import json
+    import os
+    import tempfile
+    from pathlib import Path
+
+    import vasool.executor.ledger as ledger_module
+
+    os.environ["VASOOL_LEDGER_KEY"] = "held-somewhere-the-process-is-not"
+    try:
+        importlib.reload(ledger_module)
+        path = Path(tempfile.mkdtemp()) / "signed.jsonl"
+        signed = ledger_module.Ledger(path)
+        signed.append("intent", "case_1", {"amount_paise": 100})
+        signed.append("outcome", "case_1", {"succeeded": True})
+        signed.close()
+        assert ledger_module.Ledger.load(path).verify()[0]
+
+        lines = path.read_text().splitlines()
+        first = json.loads(lines[0])
+        first["payload"]["amount_paise"] = 999_999
+        path.write_text("\n".join([json.dumps(first)] + lines[1:]) + "\n")
+
+        try:
+            ledger_module.Ledger.load(path)
+        except ValueError:
+            pass
+        else:
+            raise AssertionError("a forged keyed chain loaded without complaint")
+    finally:
+        os.environ.pop("VASOOL_LEDGER_KEY", None)
+        importlib.reload(ledger_module)

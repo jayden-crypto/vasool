@@ -5,21 +5,24 @@ exists before the doing, so a crash between the two leaves evidence rather than
 a mystery. And it is *chained*: each record commits to the previous digest, so
 truncation, reordering and in-place edits are all detectable.
 
-**What this is not.** The chain is an unkeyed SHA-256 — no HMAC, no signature,
-no external anchor. Anyone who can write the file can rewrite a record and
-recompute every hash after it, and ``verify()`` recomputes from GENESIS with no
-independently-known tip to check against, so it would pass. In a payments
-system the party most likely to tamper with an audit log is the party running
-the process, who has write access by definition.
+**Two modes.** Unkeyed by default: the chain detects truncation, reordering and
+in-place edits, but anyone who can write the file can rewrite a record and
+recompute every hash after it. That is **corruption-evident, not
+tamper-evident**, and in a payments system the party most likely to tamper with
+an audit log is the one running the process.
 
-So this is **corruption-evident, not tamper-evident.** Making it the latter
-needs a key held elsewhere or a periodic anchor published somewhere the process
-cannot reach. Neither is built.
+Set ``VASOOL_LEDGER_KEY`` and the chain is HMAC-SHA256 instead. An attacker who
+rewrites a record cannot recompute the ones after it without the key. How much
+that is worth depends entirely on where the key lives — in the same environment
+as the process it buys very little, which is why this is a deployment decision
+rather than a default. The remaining gap either way is that ``verify()`` has no
+independently-known tip to check against; anchoring one externally is not built.
 """
 
 from __future__ import annotations
 
 import hashlib
+import hmac
 import json
 import os
 from dataclasses import dataclass
@@ -51,14 +54,33 @@ class LedgerRecord:
         )
 
 
+#: Set VASOOL_LEDGER_KEY to sign the chain with HMAC-SHA256 instead of a bare
+#: digest. Without it the chain detects corruption; with it, and with the key
+#: held somewhere the writing process cannot reach, it detects tampering — an
+#: attacker who rewrites a record cannot recompute the ones after it.
+#:
+#: This is a real improvement and not a complete answer. A key sitting in the
+#: same environment as the process buys very little; the point is that the
+#: mechanism exists and the deployment decides how much it is worth.
+_KEY_ENV = "VASOOL_LEDGER_KEY"
+
+
+def _signing_key() -> bytes | None:
+    key = os.environ.get(_KEY_ENV, "")
+    return key.encode() if key else None
+
+
 def _digest(seq: int, at: str, kind: str, case_id: str,
-            payload: dict[str, Any], prev_hash: str) -> str:
+            payload: dict[str, Any], prev_hash: str,
+            key: bytes | None = None) -> str:
     body = json.dumps(
         {"seq": seq, "at": at, "kind": kind, "case_id": case_id,
          "payload": payload, "prev_hash": prev_hash},
         sort_keys=True, separators=(",", ":"), default=str,
-    )
-    return hashlib.sha256(body.encode()).hexdigest()
+    ).encode()
+    if key is not None:
+        return hmac.new(key, body, hashlib.sha256).hexdigest()
+    return hashlib.sha256(body).hexdigest()
 
 
 class Ledger:
@@ -69,6 +91,7 @@ class Ledger:
         self._records: list[LedgerRecord] = []
         self._tip = GENESIS
         self._fh = None
+        self._key = _signing_key()
         if path is None:
             return
 
@@ -89,7 +112,8 @@ class Ledger:
         seq = len(self._records)
         stamp = (at or datetime.now(timezone.utc).replace(tzinfo=None)).isoformat()
         safe_payload = json.loads(json.dumps(payload, default=str, sort_keys=True))
-        digest = _digest(seq, stamp, kind, case_id, safe_payload, self._tip)
+        digest = _digest(seq, stamp, kind, case_id, safe_payload, self._tip,
+                         self._key)
         record = LedgerRecord(
             seq=seq, at=stamp, kind=kind, case_id=case_id,
             payload=safe_payload, prev_hash=self._tip, hash=digest,
@@ -121,7 +145,7 @@ class Ledger:
         for record in self._records:
             expected = _digest(
                 record.seq, record.at, record.kind, record.case_id,
-                record.payload, prev,
+                record.payload, prev, self._key,
             )
             if expected != record.hash or record.prev_hash != prev:
                 return False, record.seq

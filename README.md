@@ -519,6 +519,7 @@ results/               ← every result file behind the tables above, plus one
 |---|---|
 | `VASOOL_PROVIDER` | `ollama`, `openai_compat`, or `anthropic`. Unset falls back to `anthropic` if a key is present, otherwise the model arms run from cache and degrade to the rules path — counted openly as degraded decisions. |
 | `VASOOL_MODEL` | Model id for the selected provider. The published run used `qwen2.5:7b`. |
+| `VASOOL_LEDGER_KEY` | Signs the audit chain with HMAC-SHA256 instead of a bare digest. Worth setting only if the key lives somewhere the process does not. |
 | `VASOOL_OLLAMA_URL` | Ollama endpoint. Deliberately separate from `VASOOL_BASE_URL`, which is for OpenAI-shaped hosts only. |
 | `ANTHROPIC_API_KEY` | Used when `VASOOL_PROVIDER` is unset or `anthropic`. |
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Test keys for `make live`. The client refuses to start on a `rzp_live_` key. |
