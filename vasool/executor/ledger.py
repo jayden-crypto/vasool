@@ -23,7 +23,7 @@ import hashlib
 import json
 import os
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Iterator, Optional
 
@@ -87,7 +87,7 @@ class Ledger:
                at: Optional[datetime] = None) -> str:
         """Write one record and return its digest — the receipt I8 demands."""
         seq = len(self._records)
-        stamp = (at or datetime.utcnow()).isoformat()
+        stamp = (at or datetime.now(timezone.utc).replace(tzinfo=None)).isoformat()
         safe_payload = json.loads(json.dumps(payload, default=str, sort_keys=True))
         digest = _digest(seq, stamp, kind, case_id, safe_payload, self._tip)
         record = LedgerRecord(

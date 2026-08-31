@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import argparse
 import sys
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from rich.console import Console
@@ -42,7 +42,7 @@ RUNS = Path(__file__).resolve().parents[2] / "runs"
 
 
 def build_case(order_id: str, payment_id: str, amount_paise: int) -> CaseState:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     event = FailureEvent(
         event_id="evt_live", payment_id=payment_id, order_id=order_id,
         amount_paise=amount_paise, currency="INR", rail=Rail.CARD,
@@ -100,12 +100,12 @@ def main(argv: list[str] | None = None) -> int:
     if args.mcp:
         order = backend.client.call_tool("create_order", {
             "amount": args.amount, "currency": "INR",
-            "receipt": f"vasool-{datetime.utcnow():%Y%m%d%H%M%S}",
+            "receipt": f"vasool-{datetime.now(timezone.utc).replace(tzinfo=None):%Y%m%d%H%M%S}",
         })
     else:
         order = backend._request("POST", "/orders", json={
             "amount": args.amount, "currency": "INR",
-            "receipt": f"vasool-{datetime.utcnow():%Y%m%d%H%M%S}",
+            "receipt": f"vasool-{datetime.now(timezone.utc).replace(tzinfo=None):%Y%m%d%H%M%S}",
         })
     console.print(f"   order: [cyan]{order['id']}[/cyan]  {rupees(args.amount)}")
 
@@ -125,7 +125,7 @@ def main(argv: list[str] | None = None) -> int:
         console.print(Panel(reply, title="customer reply (untrusted)",
                             border_style="red"))
 
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc).replace(tzinfo=None)
     proposal, degraded = diagnoser.propose(case, now, customer_reply=reply)
 
     table = Table(show_header=False, box=None)
