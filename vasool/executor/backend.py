@@ -32,6 +32,20 @@ class ProviderError(Exception):
     """A write definitively failed. Safe to treat as a non-event."""
 
 
+class ReconciliationUnknown(Exception):
+    """We could not determine what an idempotency key did.
+
+    The sibling of SettlementUnknown, and the more dangerous of the two. The
+    reconcile path exists to answer "did this write land?" after a timeout —
+    and it is reached precisely when the provider is unreachable, so its own
+    read failing is the *expected* case, not the exotic one.
+
+    Returning None there would mean "provably did not happen", which licenses a
+    replay against a provider we just failed to read, and writes
+    ``action_absent`` into a tamper-evident ledger as though it were a fact.
+    """
+
+
 class SettlementUnknown(Exception):
     """The settlement state of an order could not be read.
 
@@ -68,7 +82,12 @@ class PaymentsBackend(Protocol):
     ) -> Optional[ActionOutcome]:
         """Resolve an UnknownOutcome by looking up what the key actually did.
 
-        Returns the outcome if the action landed, or None if it provably did
-        not — in which case retrying with the *same* key is safe.
+        Three outcomes, and the third is not None:
+
+        * an ``ActionOutcome`` — the action landed;
+        * ``None`` — it **provably** did not land, so replaying the same key is
+          safe;
+        * raise ``ReconciliationUnknown`` — we could not tell. Never collapse
+          this into None.
         """
         ...

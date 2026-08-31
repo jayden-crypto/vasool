@@ -158,6 +158,47 @@ def scenario_unknown_write_outcome() -> Result:
     )
 
 
+def scenario_reconcile_also_fails() -> Result:
+    """The failure behind the failure: the recovery read fails too.
+
+    Found by an adversarial review. The original suite injected a write timeout
+    but gave the reconciler a perfect oracle, so only the branch where recovery
+    succeeds was ever exercised — and the other branch replayed a money action
+    on an unproven absence, recording ``action_absent`` in the ledger as fact.
+    """
+    _, env, case, now = _world()
+    backend = inject.BlindTimingOutBackend(env, fail_every=1, silently_applies=True)
+    ledger = Ledger()
+    executor = Executor(backend, ledger, COSTS)
+    diagnoser = RulesDiagnoser(POLICY)
+    proposal, _ = diagnoser.propose(case, now)
+    if proposal.intervention in (Intervention.STOP, Intervention.WAIT):
+        proposal, _ = diagnoser.propose(case, now)
+
+    executor.execute(proposal, case, now)
+    charged = env.settled.get(case.event.order_id, 0)
+    kinds = [r.kind for r in ledger]
+    claimed_absent = any(
+        r.payload.get("resolution") == "action_absent" for r in ledger
+    )
+    return Result(
+        "The write times out AND the reconcile read fails too",
+        passed=executor.stats.unresolved == 1
+        and not claimed_absent
+        and backend.calls == 1                       # no replay
+        and charged in (0, case.event.amount_paise),
+        claim="absence was never proven, so nothing is replayed and the ledger "
+              "records the ambiguity instead of inventing a fact",
+        observed=[
+            f"unresolved outcomes: {executor.stats.unresolved}",
+            f"provider write attempts: {backend.calls} (a replay would make it 2)",
+            f"ledger claims 'action_absent': {claimed_absent} (must be False)",
+            f"amount collected: {charged} of {case.event.amount_paise} paise",
+            "ledger kinds: " + ", ".join(kinds),
+        ],
+    )
+
+
 def scenario_duplicate_delivery() -> Result:
     _, env, case, now = _world()
     gate = Gate(POLICY, COSTS, env.is_settled)
@@ -359,6 +400,7 @@ SCENARIOS = [
     scenario_out_of_taxonomy,
     scenario_model_unavailable,
     scenario_unknown_write_outcome,
+    scenario_reconcile_also_fails,
     scenario_duplicate_delivery,
     scenario_crash_mid_batch,
     scenario_settlement_read_fails,

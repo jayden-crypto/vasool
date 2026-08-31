@@ -35,6 +35,7 @@ from vasool.core.types import (
 )
 from vasool.executor.backend import (
     ProviderError,
+    ReconciliationUnknown,
     SettlementUnknown,
     UnknownOutcome,
 )
@@ -193,14 +194,28 @@ class RazorpayMcpBackend:
         return self._outcome(existing, replay=True) if existing else None
 
     def _find_by_reference(self, reference_id: str) -> Optional[dict[str, Any]]:
+        """Raises rather than guessing — see RazorpayRestBackend._find_by_reference.
+
+        Known limitation, documented rather than papered over: the MCP toolset
+        exposes no filtered lookup, so this fetches a page of links and scans.
+        On an account past the first page the target may simply be absent from
+        the response, which is indistinguishable from "not created". Absence is
+        therefore only trustworthy on a small test account, and this raises
+        instead of returning None when the page looks full.
+        """
         try:
             body = self.client.call_tool("fetch_all_payment_links", {})
-        except ProviderError:
-            return None
+        except (ProviderError, BrokenPipeError, TimeoutError) as exc:
+            raise ReconciliationUnknown(
+                f"cannot list payment links for {reference_id}: {exc}") from exc
         items = body.get("payment_links") or body.get("items") or []
         for item in items:
             if item.get("reference_id") == reference_id:
                 return item
+        if len(items) >= 100:                      # a full page: absence proves nothing
+            raise ReconciliationUnknown(
+                f"{reference_id} not in the first page of {len(items)} links; "
+                "the MCP toolset offers no filtered lookup")
         return None
 
     @staticmethod

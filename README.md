@@ -401,6 +401,7 @@ Ten scenarios, all green, all also running under `pytest`:
 | Model invents a failure class | Closed taxonomy makes it unrepresentable |
 | Model API times out repeatedly | Circuit breaker opens after 4; the queue drains deterministically |
 | **Razorpay write times out — outcome unknown** | Never blind-retry. Reconcile by idempotency key, then proceed |
+| **…and the reconcile read fails too** | Absence was never proven, so nothing is replayed. The ledger records the ambiguity instead of inventing `action_absent` |
 | The same intent is delivered twice | I2 recognises the key; charged once |
 | Process dies mid-batch | Write-ahead ledger reconstructs exactly what was attempted |
 | **Prompt injection in a customer's reply** | The model has no authority; I3 settles it |

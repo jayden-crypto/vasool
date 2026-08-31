@@ -30,6 +30,7 @@ from vasool.core.types import (
 )
 from vasool.executor.backend import (
     ProviderError,
+    ReconciliationUnknown,
     SettlementUnknown,
     UnknownOutcome,
 )
@@ -82,18 +83,32 @@ class RazorpayRestBackend:
     # -- transport ----------------------------------------------------------
 
     def _request(self, method: str, path: str, **kwargs: Any) -> dict[str, Any]:
+        """Issue one request, classifying failures by what they actually prove.
+
+        The distinction that matters is whether the request could have changed
+        state. A 502 on a POST and a connection reset mid-flight are *unknown
+        outcomes*, not clean failures — the write may well have landed. An
+        earlier version raised ProviderError for both, whose docstring says
+        "safe to treat as a non-event", so genuinely ambiguous writes took the
+        ignore-it path with no reconciliation.
+        """
         import requests
+        writes = method.upper() in ("POST", "PUT", "PATCH", "DELETE")
         try:
             response = self._session.request(
                 method, f"{API_ROOT}{path}", timeout=self.timeout, **kwargs,
             )
         except requests.Timeout as exc:
-            # A timeout on a write is not a decline. Surface it as unknown.
             raise UnknownOutcome("", f"{method} {path} timed out") from exc
         except requests.RequestException as exc:
+            if writes:
+                raise UnknownOutcome("", f"{method} {path}: {exc}") from exc
             raise ProviderError(f"{method} {path}: {exc}") from exc
 
         if response.status_code >= 500:
+            if writes:
+                raise UnknownOutcome(
+                    "", f"{response.status_code} from Razorpay on {method} {path}")
             raise ProviderError(f"{response.status_code} from Razorpay")
         try:
             body = response.json()
@@ -174,22 +189,29 @@ class RazorpayRestBackend:
     def reconcile(
         self, idempotency_key: str, case: CaseState, now: datetime,
     ) -> Optional[ActionOutcome]:
+        """None here means *provably absent*, and nothing else."""
         link = self._find_by_reference(idempotency_key)
-        if link is None:
-            return None
-        return self._outcome_from_link(link, None, replay=True)
+        return None if link is None else self._outcome_from_link(link, None, replay=True)
 
     # -- helpers ------------------------------------------------------------
 
     def _find_by_reference(self, reference_id: str) -> Optional[dict[str, Any]]:
+        """Look up what a key did. Raises rather than guessing.
+
+        Swallowing the error and returning None turned "could not read" into
+        "does not exist", which the executor then acts on by replaying a money
+        action — and records as ``action_absent`` in the ledger.
+        """
         if not reference_id:
-            return None
+            raise ReconciliationUnknown("no reference id to look up")
         try:
             body = self._request(
                 "GET", "/payment_links", params={"reference_id": reference_id},
             )
-        except ProviderError:
-            return None
+        except (ProviderError, UnknownOutcome) as exc:
+            raise ReconciliationUnknown(
+                f"cannot read payment_links for {reference_id}: {exc}"
+            ) from exc
         items = body.get("payment_links") or body.get("items") or []
         return items[0] if items else None
 

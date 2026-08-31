@@ -261,6 +261,17 @@ twice.
    cannot produce a second action either.
 5. If the replay also fails, give up cleanly and leave the case open.
 
+**And the case behind that case.** Step 2 is itself a read against a provider we
+reached this code path because we could not reach. An adversarial review found
+that its failure was being swallowed — `_find_by_reference` returned `None`,
+which step 3 reads as *provably absent*, which licenses the replay in step 4 and
+writes `action_absent` into a tamper-evident ledger as though it were a fact.
+
+It now raises `ReconciliationUnknown`, the executor refuses to replay on an
+unproven absence, and the ledger records `reconcile_failed_outcome_unknown`.
+Fault scenario 11 injects exactly this, and asserts the provider sees one write
+rather than two.
+
 The `TimingOutBackend` fault wrapper models the honest version of this: it times
 out *and still applies the write*. A system that assumed failure would double
 charge. The scenario asserts the collected amount is exactly the order amount or

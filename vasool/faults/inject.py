@@ -25,7 +25,12 @@ from vasool.core.types import (
     Intervention,
 )
 from vasool.diagnosis.llm import DiagnosisStats
-from vasool.executor.backend import PaymentsBackend, ProviderError, UnknownOutcome
+from vasool.executor.backend import (
+    PaymentsBackend,
+    ProviderError,
+    ReconciliationUnknown,
+    UnknownOutcome,
+)
 from vasool.kernel.gate import Review
 
 
@@ -70,7 +75,32 @@ class TimingOutBackend:
 
     def reconcile(self, idempotency_key: str, case: CaseState,
                   now: datetime) -> Optional[ActionOutcome]:
+        """A perfect oracle — it always knows. That is the point, and the limit.
+
+        This models the *lucky* half of a timeout: the write is ambiguous but
+        the follow-up read succeeds. It is not the realistic half. See
+        ``BlindTimingOutBackend`` for the case where the recovery mechanism
+        fails too, which is what actually happens when a provider is down.
+        """
         return self._applied.get(idempotency_key)
+
+
+class BlindTimingOutBackend(TimingOutBackend):
+    """A write times out, and the read you would use to resolve it times out too.
+
+    The realistic shape of a provider outage, and the one the fault suite
+    originally missed: it asserted only the branch where reconciliation
+    succeeds. The dangerous branch is this one, because "could not read" used to
+    be returned as None, which the executor read as "provably did not happen"
+    and acted on by replaying a money action.
+    """
+
+    name = "blind-timing-out"
+
+    def reconcile(self, idempotency_key: str, case: CaseState,
+                  now: datetime) -> Optional[ActionOutcome]:
+        raise ReconciliationUnknown(
+            f"cannot look up {idempotency_key}: provider unreachable")
 
 
 class ErroringBackend:

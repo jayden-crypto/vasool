@@ -20,7 +20,12 @@ from vasool.core.types import (
     CaseStatus,
     ContactRecord,
 )
-from vasool.executor.backend import PaymentsBackend, ProviderError, UnknownOutcome
+from vasool.executor.backend import (
+    PaymentsBackend,
+    ProviderError,
+    ReconciliationUnknown,
+    UnknownOutcome,
+)
 from vasool.executor.ledger import Ledger
 from vasool.kernel.gate import Review
 from vasool.kernel.invariants import action_key, i8_audit_before_action
@@ -33,6 +38,7 @@ class ExecutionStats:
     unknown_outcomes: int = 0
     reconciled_landed: int = 0
     reconciled_absent: int = 0
+    unresolved: int = 0
     provider_errors: int = 0
 
 
@@ -156,7 +162,26 @@ class Executor:
             at=now,
         )
 
-        landed = self.backend.reconcile(exc.idempotency_key, case, now)
+        try:
+            landed = self.backend.reconcile(exc.idempotency_key, case, now)
+        except ReconciliationUnknown as unresolved:
+            # The read we use to recover from a failed write has itself failed —
+            # the expected case, since we are here because the provider is
+            # unreachable. Absence is not proven, so replaying is not safe. Stop,
+            # record the ambiguity honestly, and leave it for a human.
+            self.stats.unresolved += 1
+            self.ledger.append(
+                "unresolved", case.case_id,
+                {"idempotency_key": exc.idempotency_key,
+                 "resolution": "reconcile_failed_outcome_unknown",
+                 "replaying": False, "detail": str(unresolved)},
+                at=now,
+            )
+            return ActionOutcome(
+                executed=False, succeeded=False, collected_paise=0, cost_paise=0,
+                detail=f"outcome unknown and unreconcilable: {unresolved}",
+                harms=("unresolved_write",),
+            )
         if landed is not None:
             self.stats.reconciled_landed += 1
             self.ledger.append(
