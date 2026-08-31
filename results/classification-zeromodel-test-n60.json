@@ -1,0 +1,43 @@
+{
+  "split": "test",
+  "n": 60,
+  "ceiling": 0.9333333333333333,
+  "rows": [
+    {
+      "model": "rules baseline (no model)",
+      "correct": {
+        "clean_code": 24,
+        "all": 49,
+        "generic_prose": 25
+      },
+      "total": {
+        "clean_code": 24,
+        "all": 60,
+        "generic_prose": 29,
+        "misleading": 7
+      },
+      "stats": {},
+      "errors": {},
+      "seconds": 0.0
+    },
+    {
+      "model": "rules + believe-the-prose (no model)",
+      "correct": {
+        "clean_code": 23,
+        "all": 55,
+        "generic_prose": 25,
+        "misleading": 7
+      },
+      "total": {
+        "clean_code": 24,
+        "all": 60,
+        "generic_prose": 29,
+        "misleading": 7
+      },
+      "stats": {},
+      "errors": {},
+      "routes": {},
+      "seconds": 0.0
+    }
+  ]
+}

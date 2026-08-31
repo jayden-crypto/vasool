@@ -300,39 +300,51 @@ This is worth stating plainly rather than softening: as originally framed, the
 hypothesis is unsupported by its own measurement. A model asked to diagnose
 every case is worse than a lookup table.
 
-### The router, and what the failure actually pointed at
+### The router, and why its model call was removed
 
 Isolating classification (`vasool/bench/classify.py`, one call per case instead
-of ~5.4) made a stronger model affordable and produced the finding the
-trajectory run was too expensive to reach. On the held-out split with
+of ~5.4) made a stronger model affordable. On the held-out split with
 `qwen/qwen3.8-27b`:
 
 | Diagnoser | Overall | clean code | prose only | contradictory | calls |
 |---|---:|---:|---:|---:|---:|
-| rules | 81.7% | **100.0%** | 86.2% | **0.0%** | 0 |
+| rules | 81.7% | 100.0% | 86.2% | **0.0%** | 0 |
 | model, raw | 80.0% | 83.3% | 75.9% | 85.7% | 60 |
-| **model, routed** | **91.7%** | **100.0%** | **86.2%** | **85.7%** | **8** |
+| model, routed | 91.7% | 100.0% | 86.2% | 85.7% | 8 |
+| **rules + believe-the-prose** | **91.7%** | 95.8% | 86.2% | **100.0%** | **0** |
 
-The two diagnosers fail in complementary ways, and the aggregate hid it. Rules
-are perfect where the code states the cause and score **zero** where the code
-contradicts the prose. The model is the mirror image.
+The two diagnosers fail in complementary ways and the aggregate hid it. Rules
+are perfect where the code states the cause and score zero where the code
+contradicts the prose. So `decide_route` asks whether the two sources agree, and
+escalates only on disagreement.
 
-`vasool/diagnosis/router.py` therefore never asks what the cause is. It asks
-whether the two sources of evidence agree — one class derived from the reason
-code, one from the issuer's message — and escalates only on disagreement.
-Deterministic, no ground truth, no model, auditable in the same way the kernel
-is. It reaches 98% of the ceiling on 13% of the model calls.
+**Then the escalation turned out to be unnecessary.** Detecting a disagreement
+requires computing a prose classification, so the router is holding a candidate
+answer at the moment it decides to ask a model for one. `classify_adjudicated`
+replaces the call with a single rule — on conflict, believe the prose — and
+matches the routed model at N=60, then beats it at N=500 (95.4% against 86.6%
+for the plain baseline, on a 98.2% ceiling) with no model at all.
 
-The counter-intuitive part is worth keeping: the model is **not** better at
-reading prose. Rules beat it 86.2% to 75.9%. Its advantage is narrowly
-adjudication between contradictory sources — which is a far more defensible
-claim than "models are good at language", and it is the one the architecture
-should have been making from the start.
+The cause is structural, not statistical. `_build_error` builds a contradictory
+case by keeping the true class's issuer message and swapping in a random wrong
+code. The prose is truthful by construction on every such case, which makes
+"believe the prose" the generator's own answer key. No model, however large,
+recovers value the rule has not already taken.
 
-The router was designed after seeing the test-split breakdown, so both
-escalation modes were validated on the dev split first (76.7% → 86.7%) before
-the test figure was taken.
+What this leaves standing, precisely:
 
+* **The routing decision earns its place.** Knowing *which* cases are ambiguous
+  is genuinely useful and is computed deterministically from evidence.
+* **The escalation target does not.** On this benchmark there is nothing worth
+  escalating to.
+* **The claim a model adjudicates conflicting evidence better is unsupported**
+  by the data in this repository, and this benchmark cannot support it, because
+  it never emits a case where the code is right and the prose is wrong. Building
+  that generator is the next experiment.
+
+The router remains in the codebase with the model path intact, because the
+comparison is the finding and because the world where it wins is a config change
+away rather than a rewrite.
 ---
 
 ## Benchmark methodology

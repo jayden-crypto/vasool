@@ -493,3 +493,25 @@ def test_the_gate_counts_failed_settlement_reads():
     gate = Gate(POLICY, COSTS, _unreadable)
     gate.review(f.proposal(), f.case(), f.T0)
     assert gate.settlement_reads_failed == 1
+
+
+def test_believing_the_prose_beats_the_lookup_table_on_conflict():
+    """The rule that made the router's model call redundant.
+
+    The plain classifier trusts the reason code and therefore scores zero
+    wherever the code contradicts the issuer's message. This asserts the
+    adjudicated classifier gets those cases right instead.
+    """
+    from vasool.diagnosis.fallback import classify, classify_adjudicated
+
+    ev = f.event(error=f.error(reason="card_expired",
+                               issuer_message="DECLINE - NOT SUFFICIENT FUNDS"))
+    assert classify(ev).failure_class is FailureClass.INSTRUMENT_DEAD   # wrong
+    assert classify_adjudicated(ev).failure_class is FailureClass.INSUFFICIENT_FUNDS
+
+
+def test_adjudication_leaves_agreeing_evidence_alone():
+    from vasool.diagnosis.fallback import classify, classify_adjudicated
+    ev = f.event(error=f.error(reason="card_expired",
+                               issuer_message="Card has expired"))
+    assert classify_adjudicated(ev).failure_class == classify(ev).failure_class

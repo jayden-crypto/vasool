@@ -15,18 +15,19 @@ emits a typed proposal. A deterministic kernel of eight invariants holds the
 authority and decides. Every decision is written to a hash-chained ledger
 *before* it executes.
 
-**Both halves were tested against my own hypothesis, and both answers were
-surprising.** I expected a language model to beat a rules engine at reading
-issuer evidence. Used naively it does not — it loses to a lookup table. Used
-*only where the reason code and the issuer's own message disagree*, it reaches
-**91.7% against a 93.3% ceiling** on an eighth of the model calls. And when a
-weak model was wired in, the kernel absorbed it: zero harms, while the same
-model without a kernel double-charged customers.
+**This project refuted its own hypothesis twice, and the second time is the
+useful one.** I expected a language model to beat a rules engine at reading
+issuer evidence. It lost. I then built a router to use the model only where the
+rules are blind — cases where the reason code contradicts the issuer's own
+message — and it reached 91.7%. Then an adversarial review pointed out that the
+router computes a prose classification in order to *detect* the conflict, and
+then pays a model to re-derive it. Replacing the model call with one line of
+Python matches it at N=60 and **beats it at N=500, with zero model calls.**
 
-So the architecture's claim narrowed and got sharper. It is not that a model
-reads evidence better. It is that a model adjudicates *conflicting* evidence
-better, and that a deterministic layer should decide when to ask it — and
-whether to let it touch money.
+What survives is the part that was meant to be plumbing: a model should not hold
+credentials, and a deterministic layer should decide when to escalate. When a
+weak model was wired in anyway, the kernel absorbed it — zero harms, while the
+same model without a kernel double-charged customers.
 
 ---
 
@@ -153,44 +154,59 @@ architecture is unchanged either way, `VASOOL_PROVIDER` selects it, and
 `make bench-full` re-runs the same comparison. Until someone does that, the
 honest statement is that **this result measures a 7B, not language models.**
 
-### The router: ask the model only when the evidence disagrees
+### The router, and the second time this project refuted itself
 
-The five-arm run costs ~5.4 model calls per case, which is why it ran on a local
-7B. The claim about the model, though, needs **one** call per case — so
-`make classify` isolates it, and that made a better model affordable.
+I built an evidence router, measured it, and then discovered the model inside it
+was doing nothing. That finding is below, and it is the most useful thing in
+this repository.
 
-Held-out test split, N=60, `qwen/qwen3.8-27b`:
+**The reasoning.** The rules baseline is perfect where the reason code states
+the cause and scores **zero** where the code contradicts the issuer's own
+message — a lookup table believes the code. A model reverses both. So the
+router asks not *what is the cause* but *do my two sources agree*, and escalates
+only on disagreement.
+
+Held-out test split, `qwen/qwen3.8-27b`:
 
 | Diagnoser | Overall | clean code | prose only | contradictory | model calls |
 |---|---:|---:|---:|---:|---:|
-| rules baseline | 81.7% | **100.0%** | 86.2% | **0.0%** | 0 |
+| rules baseline | 81.7% | 100.0% | 86.2% | **0.0%** | 0 |
 | model, raw | 80.0% | 83.3% | 75.9% | 85.7% | 60 |
-| **model, routed** | **91.7%** | **100.0%** | **86.2%** | **85.7%** | **8** |
+| model, routed | 91.7% | 100.0% | 86.2% | 85.7% | 8 |
+| **rules + believe-the-prose** | **91.7%** | 95.8% | 86.2% | **100.0%** | **0** |
 
-**91.7% against a 93.3% ceiling** — 98% of what the evidence allows. Ten points
-above the rules baseline, 11.7 above the same model used naively, on **an eighth
-of the model spend.**
+**The model contributes nothing.** To detect a disagreement the router must
+first compute a prose classification — so it already holds an answer, and then
+spends a model call re-deriving it. Replacing that call with one line, *on
+conflict believe the prose*, ties the routed model at N=60 and beats it at scale:
 
-The two diagnosers fail in exactly complementary ways. Rules are flawless where
-the reason code states the cause and score **zero** where the code contradicts
-the issuer's own message, because a lookup table believes the code. The model
-reverses both: it wins the contradictory cases and degrades the rest by
-second-guessing evidence that was never in doubt.
+| N=500, held-out | Overall | contradictory | model calls |
+|---|---:|---:|---:|
+| rules baseline | 86.6% | 0.0% | 0 |
+| **rules + believe-the-prose** | **95.4%** | **98.2%** | **0** |
 
-So `vasool/diagnosis/router.py` never asks *what is the cause*. It asks **do my
-two sources agree** — derive a class from the reason code, derive one from the
-prose, compare — and escalates only on disagreement. That decision is
-deterministic, reads no ground truth, and is as auditable as the kernel.
+97% of a 98.2% ceiling, no model, no API key, no latency.
 
-One finding worth stating because it is counter-intuitive: the model is not
-better at *reading* prose. Rules beat it there, 86.2% to 75.9%. Its only real
-advantage is **adjudicating between two sources that contradict each other**,
-which is a much narrower claim than "models are good at language" and a much
-more useful one.
+**Why, structurally.** `_build_error` constructs a contradictory case by keeping
+the true class's issuer message and swapping in a wrong reason code drawn at
+random. The prose is therefore truthful by construction on every such case, so
+"believe the prose" is the generator's own answer key. This is not a seed
+artifact and a bigger model will not change it.
 
-**On method.** The router was designed after seeing the test-split breakdown,
-which is overfitting risk. Both escalation modes were therefore validated on the
-**dev** split first — 76.7% → 86.7% — before the test number was taken.
+**The steelman, and why it does not rescue the claim.** In production, issuer
+prose is often boilerplate and the code is often right; a model weighing both
+could genuinely be more robust than a fixed rule. That defence is reasonable —
+and this repository contains no evidence for it, because the generator never
+emits a case where the code is right and the prose is wrong. Producing that
+world is the obvious next experiment. Until it exists, the supportable claim is
+narrow: **on the only evidence presented here, the model is redundant.**
+
+So the architecture's thesis survives in its structural half and loses its
+empirical half. A deterministic layer should decide when to escalate — that
+holds. The premise that there is something worth escalating *to*, on this
+benchmark, does not.
+
+*Found by an adversarial review of this repository; see [LIMITATIONS.md](LIMITATIONS.md).*
 
 ---
 

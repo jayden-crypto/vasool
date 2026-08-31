@@ -149,6 +149,49 @@ def classify(event: FailureEvent) -> Diagnosis:
     )
 
 
+def classify_adjudicated(event: FailureEvent) -> Diagnosis:
+    """``classify``, plus one rule for the case the lookup table always loses.
+
+    The plain classifier trusts the reason code whenever it recognises one, so
+    it scores **zero** on cases where the code contradicts the issuer's own
+    message. This adds the missing line: when the two sources disagree, believe
+    the prose.
+
+    Written after an adversarial review pointed out that the evidence router
+    was paying a model to answer exactly this question — and that the answer
+    was already sitting in a local variable, because detecting the conflict
+    requires computing the prose classification first. On the held-out split
+    this rule matches the routed model at N=60 and beats it by 3.7 points at
+    N=500, using no model at all.
+
+    Read the limits before reusing it. In this benchmark the prose is truthful
+    on every contradictory case by construction, so "believe the prose" is the
+    generator's own answer key. In production, issuer prose is frequently
+    boilerplate and the code is frequently right; a model weighing both could
+    genuinely beat this. That world is one this benchmark cannot produce, so
+    the honest claim is narrow: *on the evidence presented here, the model is
+    redundant.*
+    """
+    from_code = classify_from_code(event)
+    from_message = classify_from_message(event)
+
+    if from_code is None:
+        return from_message or classify(event)
+    if from_message is None or from_message.failure_class is from_code.failure_class:
+        return from_code
+    return Diagnosis(
+        failure_class=from_message.failure_class,
+        confidence=0.75,                       # lower: the sources disagreed
+        rationale=(
+            f"reason code '{event.error.reason}' says "
+            f"{from_code.failure_class.value}; the issuer message says "
+            f"{from_message.failure_class.value}. Believing the message."
+        ),
+        evidence_fields=("error.reason", "error.issuer_message"),
+        source="rules",
+    )
+
+
 def pick_channel(event: FailureEvent, policy: Policy) -> Channel:
     """Best permitted channel, respecting DND at the channel level."""
     dnd_blocked = {Channel.SMS, Channel.VOICE} if event.customer.dnd_registered else set()

@@ -37,6 +37,7 @@ from vasool.core.types import CaseState, FailureClass
 from vasool.diagnosis import providers
 from vasool.diagnosis.cache import ResponseCache
 from vasool.diagnosis.fallback import classify as rules_classify
+from vasool.diagnosis.fallback import classify_adjudicated as fallback_adjudicated
 from vasool.diagnosis.llm import LLMDiagnoser
 
 RESULTS = Path(__file__).resolve().parents[2] / "results"
@@ -100,6 +101,23 @@ def run_model(model: str, n: int, split: str, console: Console,
     }
 
 
+def deterministic_row(n: int, split: str, label: str, fn) -> dict[str, Any]:
+    """Score any zero-model classifier over the same batch."""
+    batch = generate(split, n_cases=n)
+    correct: dict[str, int] = defaultdict(int)
+    total: dict[str, int] = defaultdict(int)
+    for event, hidden in zip(batch.events, batch.hidden.values()):
+        truth = hidden.true_class
+        style = evidence_style(event, truth)
+        total[style] += 1
+        total["all"] += 1
+        if fn(event).failure_class == truth:
+            correct[style] += 1
+            correct["all"] += 1
+    return {"model": label, "correct": dict(correct), "total": dict(total),
+            "stats": {}, "errors": {}, "routes": {}, "seconds": 0.0}
+
+
 def rules_baseline(n: int, split: str) -> dict[str, Any]:
     batch = generate(split, n_cases=n)
     correct: dict[str, int] = defaultdict(int)
@@ -136,7 +154,12 @@ def main(argv: list[str] | None = None) -> int:
 
     env.load()
     console = Console()
-    rows = [rules_baseline(args.n, args.split)]
+    rows = [
+        rules_baseline(args.n, args.split),
+        deterministic_row(args.n, args.split,
+                          "rules + believe-the-prose (no model)",
+                          fallback_adjudicated),
+    ]
 
     models = [m.strip() for m in args.models.split(",") if m.strip()]
     for model in models:
