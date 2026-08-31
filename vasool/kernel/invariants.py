@@ -100,9 +100,16 @@ def i1_no_double_collect(ctx: GateContext) -> Verdict:
 # I2 — idempotent_write
 # ---------------------------------------------------------------------------
 
-def action_key(proposal: ActionProposal) -> str:
-    """Deterministic idempotency key for one intended money action."""
-    return hashlib.sha256(proposal.idempotency_seed().encode()).hexdigest()[:24]
+def action_key(proposal: ActionProposal, decision_ordinal: int | None = None) -> str:
+    """Deterministic idempotency key for one intended money action.
+
+    The ordinal is carried on the proposal and recorded in the ledger, so the
+    key survives a restart — unlike a wall-clock timestamp — and a replay of the
+    same decision computes the same key even after the case has moved on.
+    """
+    return hashlib.sha256(
+        proposal.idempotency_seed(decision_ordinal).encode()
+    ).hexdigest()[:24]
 
 
 def i2_idempotent_write(ctx: GateContext) -> Verdict:

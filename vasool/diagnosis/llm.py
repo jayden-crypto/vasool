@@ -320,6 +320,7 @@ class LLMDiagnoser:
         )
         return ActionProposal(
             case_id=case.case_id,
+            decision_ordinal=case.decision_ordinal,
             intervention=Intervention(raw.intervention),
             channel=Channel(raw.channel),
             amount_paise=int(raw.amount_paise),

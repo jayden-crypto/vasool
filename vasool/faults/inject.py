@@ -194,6 +194,7 @@ def compromised_proposal(amount_paise: int, intervention: Intervention,
     def factory(case: CaseState, now: datetime, repair_for: Optional[Review]):
         return ActionProposal(
             case_id=case.case_id,
+            decision_ordinal=case.decision_ordinal,
             intervention=intervention,
             channel=channel,
             amount_paise=amount_paise,

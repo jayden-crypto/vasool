@@ -69,7 +69,8 @@ class CronDiagnoser:
         if step >= len(self.SCHEDULE_HOURS):
             return (
                 ActionProposal(
-                    case_id=case.case_id, intervention=Intervention.STOP,
+                    case_id=case.case_id,
+            decision_ordinal=case.decision_ordinal, intervention=Intervention.STOP,
                     channel=Channel.NONE, amount_paise=0,
                     currency=case.event.currency, scheduled_for=now,
                     diagnosis=NO_DIAGNOSIS, rationale="retry schedule exhausted",
@@ -82,6 +83,7 @@ class CronDiagnoser:
         return (
             ActionProposal(
                 case_id=case.case_id,
+            decision_ordinal=case.decision_ordinal,
                 intervention=Intervention.RETRY_SAME_RAIL,
                 channel=Channel.NONE,
                 amount_paise=case.event.amount_paise,

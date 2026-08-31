@@ -90,6 +90,7 @@ class Executor:
             "intent", case.case_id,
             {
                 "idempotency_key": key,
+                "decision_ordinal": proposal.decision_ordinal,
                 "intervention": proposal.intervention.value,
                 "channel": proposal.channel.value,
                 "amount_paise": proposal.amount_paise,
@@ -217,6 +218,7 @@ class Executor:
             return
 
         case.attempts += 1
+        case.decision_ordinal += 1
         case.executed_keys.add(key)
         case.spend_paise += outcome.cost_paise
 

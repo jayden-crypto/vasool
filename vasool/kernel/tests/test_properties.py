@@ -145,21 +145,30 @@ def test_a_denial_always_names_at_least_one_reason_and_one_invariant(**kw):
 @given(
     intervention=interventions, amount=amounts,
     hours_a=st.integers(0, 400), hours_b=st.integers(0, 400),
+    ordinal_a=st.integers(0, 12), ordinal_b=st.integers(0, 12),
 )
 @settings(max_examples=400, deadline=None)
-def test_idempotency_keys_collide_exactly_when_the_decision_is_the_same(
-    intervention, amount, hours_a, hours_b,
+def test_idempotency_keys_depend_on_the_decision_and_not_on_the_clock(
+    intervention, amount, hours_a, hours_b, ordinal_a, ordinal_b,
 ):
+    """The property the old test got backwards.
+
+    It asserted keys collide iff the timestamps are bit-identical — which
+    encoded the weakness rather than the guarantee, because a restarted process
+    re-deriving the same decision gets a new timestamp. Keys must depend on
+    *which decision this is*, and not at all on when it was computed.
+    """
     a = f.proposal(intervention, amount_paise=amount,
                    when=f.T0 + timedelta(hours=hours_a))
     b = f.proposal(intervention, amount_paise=amount,
                    when=f.T0 + timedelta(hours=hours_b))
-    assert (action_key(a) == action_key(b)) == (hours_a == hours_b)
+    assert (action_key(a, ordinal_a) == action_key(b, ordinal_b)) == (
+        ordinal_a == ordinal_b)
 
 
 @given(case_a=st.text(min_size=1, max_size=12), case_b=st.text(min_size=1, max_size=12))
 @settings(max_examples=200, deadline=None)
 def test_idempotency_keys_do_not_collide_across_cases(case_a, case_b):
     assume(case_a != case_b)
-    assert action_key(f.proposal(case_id=case_a)) != action_key(
-        f.proposal(case_id=case_b))
+    assert action_key(f.proposal(case_id=case_a), 0) != action_key(
+        f.proposal(case_id=case_b), 0)

@@ -66,17 +66,28 @@ def test_i1_ignores_actions_that_cannot_move_money():
 
 def test_i2_same_intent_produces_the_same_key():
     """Two deliveries of one decision must collide."""
-    assert inv.action_key(f.proposal()) == inv.action_key(f.proposal())
+    assert inv.action_key(f.proposal(), 0) == inv.action_key(f.proposal(), 0)
 
 
-def test_i2_a_later_decision_produces_a_different_key():
+def test_i2_the_key_ignores_wall_clock_so_it_survives_a_restart():
+    """Regression: the key used to be a function of ``scheduled_for``.
+
+    A restarted process re-derives the same decision at a new instant, computed
+    a different timestamp, and I2 did not fire. The key is now the decision's
+    semantic identity — case, action, amount, and position in the case's
+    sequence — all of which the ledger records.
+    """
     later = f.proposal(when=f.T0 + timedelta(hours=30))
-    assert inv.action_key(f.proposal()) != inv.action_key(later)
+    assert inv.action_key(f.proposal(), 0) == inv.action_key(later, 0)
+
+
+def test_i2_a_later_decision_in_the_sequence_produces_a_different_key():
+    assert inv.action_key(f.proposal(), 0) != inv.action_key(f.proposal(), 1)
 
 
 def test_i2_a_different_amount_produces_a_different_key():
-    assert inv.action_key(f.proposal()) != inv.action_key(
-        f.proposal(Intervention.PART_PAYMENT_LINK, amount_paise=100000))
+    assert inv.action_key(f.proposal(), 0) != inv.action_key(
+        f.proposal(Intervention.PART_PAYMENT_LINK, amount_paise=100000), 0)
 
 
 def test_i2_the_key_survives_the_attempt_counter_advancing():
@@ -91,8 +102,8 @@ def test_i2_the_key_survives_the_attempt_counter_advancing():
     after = f.case(attempts=3)
     ctx_before = ctx(proposal=p, case=before)
     ctx_after = ctx(proposal=p, case=after)
-    before.executed_keys.add(inv.action_key(p))
-    after.executed_keys.add(inv.action_key(p))
+    before.executed_keys.add(inv.action_key(p, before.decision_ordinal))
+    after.executed_keys.add(inv.action_key(p, after.decision_ordinal))
     assert not inv.i2_idempotent_write(ctx_before).allowed
     assert not inv.i2_idempotent_write(ctx_after).allowed
 
@@ -100,7 +111,7 @@ def test_i2_the_key_survives_the_attempt_counter_advancing():
 def test_i2_refuses_a_replay_of_an_executed_action():
     p = f.proposal()
     case = f.case()
-    case.executed_keys.add(inv.action_key(p))
+    case.executed_keys.add(inv.action_key(p, case.decision_ordinal))
     verdict = inv.i2_idempotent_write(ctx(proposal=p, case=case))
     assert not verdict.allowed
     assert Denial.DUPLICATE_ACTION in verdict.denials
@@ -624,3 +635,20 @@ def test_loading_a_tampered_ledger_raises_instead_of_passing_silently():
         assert "broken" in str(exc)
     else:
         raise AssertionError("a tampered chain loaded without complaint")
+
+
+def test_the_key_survives_the_case_moving_on_after_execution():
+    """The bug this field exists to close, asserted directly.
+
+    Reading the ordinal from the case at review time meant a replay computed a
+    different key than the original, because the case's counter advances after
+    execution. The ordinal is stamped on the proposal instead.
+    """
+    p = f.proposal()
+    case = f.case()
+    original = inv.action_key(p)
+    case.executed_keys.add(original)
+    case.decision_ordinal += 1          # the case moves on
+    case.attempts += 1
+    assert inv.action_key(p) == original, "a replay lost its identity"
+    assert not inv.i2_idempotent_write(ctx(proposal=p, case=case)).allowed

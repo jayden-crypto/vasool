@@ -3,7 +3,7 @@
   "seed": 20260905,
   "n_cases": 500,
   "at_risk_paise": 92399500,
-  "generated_at": "20260831-144325",
+  "generated_at": "20260831-144704",
   "provider": "ollama \u00b7 qwen2.5:7b @ http://localhost:11434 (local, free)",
   "arms": [
     {

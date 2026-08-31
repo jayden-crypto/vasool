@@ -291,7 +291,8 @@ def plan(
         worth_a_person = event.amount_paise >= HANDOFF_FLOOR_PAISE
         if worth_a_person and outreach_permitted(case, now, policy):
             return ActionProposal(
-                case_id=case.case_id, intervention=Intervention.HANDOFF_HUMAN,
+                case_id=case.case_id,
+            decision_ordinal=case.decision_ordinal, intervention=Intervention.HANDOFF_HUMAN,
                 channel=pick_channel(event, policy),
                 amount_paise=event.amount_paise, currency=event.currency,
                 scheduled_for=now, diagnosis=diagnosis,
@@ -301,7 +302,8 @@ def plan(
                 ),
             )
         return ActionProposal(
-            case_id=case.case_id, intervention=Intervention.STOP,
+            case_id=case.case_id,
+            decision_ordinal=case.decision_ordinal, intervention=Intervention.STOP,
             channel=Channel.NONE, amount_paise=0, currency=event.currency,
             scheduled_for=now, diagnosis=diagnosis,
             rationale=f"attempt cap reached ({spent} actions)",
@@ -322,13 +324,15 @@ def plan(
         )
         if is_contact and not outreach_permitted(case, when, policy):
             return ActionProposal(
-                case_id=case.case_id, intervention=Intervention.STOP,
+                case_id=case.case_id,
+            decision_ordinal=case.decision_ordinal, intervention=Intervention.STOP,
                 channel=Channel.NONE, amount_paise=0, currency=event.currency,
                 scheduled_for=now, diagnosis=diagnosis,
                 rationale="outreach not permitted: consent withdrawn or contact budget spent",
             )
         return ActionProposal(
             case_id=case.case_id,
+            decision_ordinal=case.decision_ordinal,
             intervention=intervention,
             channel=chan if chan is not None else (
                 channel if intervention in

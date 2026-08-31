@@ -250,6 +250,9 @@ class CaseState:
     closed_at: Optional[datetime] = None
     next_decision_at: Optional[datetime] = None
     degraded_decisions: int = 0             # decisions made on the fallback path
+    decision_ordinal: int = 0               # position in this case's decision
+                                            # sequence; reconstructible from the
+                                            # ledger, so keys survive a restart
     notes: list[str] = field(default_factory=list)
 
     @property
@@ -294,20 +297,33 @@ class ActionProposal:
     diagnosis: Diagnosis
     rationale: str = ""
     next_review_after: timedelta = timedelta(hours=24)
+    #: Which decision this is in the case's sequence, stamped when the proposal
+    #: is built. It must live on the proposal rather than be read from the case
+    #: at review time: the case's counter advances after execution, so reading
+    #: it later gives a replay a different identity than the original — which
+    #: is exactly the bug this field exists to close.
+    decision_ordinal: int = 0
 
-    def idempotency_seed(self) -> str:
-        """Identity of this *intent*, not of the attempt that carries it.
+    def idempotency_seed(self, decision_ordinal: int | None = None) -> str:
+        """Identity of this *intent*, stable across process restarts.
 
-        Deriving the key from a counter that advances after execution was a bug:
-        a duplicate delivery of the same decision computed a different key and
-        sailed past the duplicate check. The key must be a function of the
-        decision — case, action, amount and the moment it was scheduled for —
-        so that two deliveries of one decision collide and two genuinely
-        different decisions do not.
+        Two earlier versions were wrong in opposite directions. The first keyed
+        on ``case.attempts``, a counter that advances after execution, so a
+        replay computed a different key and sailed past the duplicate check.
+        The second keyed on ``scheduled_for`` — correct for a duplicate
+        delivery of the same in-memory object, but a restarted process
+        re-derives the decision at a new instant, computes a different
+        timestamp, and I2 again does not fire.
+
+        The key is now the decision's *semantic* identity: which case, what
+        action, how much, and which decision this is in the case's sequence.
+        The ordinal is reconstructible from the ledger, so a process that dies
+        and resumes computes the same key for the same decision.
         """
+        ordinal = self.decision_ordinal if decision_ordinal is None else decision_ordinal
         return (
             f"{self.case_id}:{self.intervention.value}:{self.amount_paise}"
-            f":{self.currency}:{self.scheduled_for.isoformat()}"
+            f":{self.currency}:#{ordinal}"
         )
 
 
