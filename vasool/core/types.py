@@ -299,6 +299,7 @@ class ActionProposal:
 class Denial(str, Enum):
     """Every rejection is a named, machine-readable reason code."""
     ALREADY_COLLECTED = "ALREADY_COLLECTED"
+    SETTLEMENT_UNKNOWN = "SETTLEMENT_UNKNOWN"
     DUPLICATE_ACTION = "DUPLICATE_ACTION"
     AMOUNT_MISMATCH = "AMOUNT_MISMATCH"
     AMOUNT_EXCEEDS_ORDER = "AMOUNT_EXCEEDS_ORDER"

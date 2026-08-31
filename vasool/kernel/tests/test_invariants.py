@@ -427,3 +427,69 @@ def test_router_is_deterministic_and_reads_no_ground_truth():
     from vasool.diagnosis.router import decide_route
     ev = f.event(error=f.error(reason="payment_failed", issuer_message="do not honour"))
     assert decide_route(ev) == decide_route(ev)
+
+
+# --------------------------------------------------------------------------
+# Settlement reads: unknown must never mean unsettled
+# --------------------------------------------------------------------------
+
+def _unreadable(_case):
+    from vasool.executor.backend import SettlementUnknown
+    raise SettlementUnknown("provider returned 503")
+
+
+def test_a_money_action_is_denied_when_settlement_cannot_be_read():
+    """Regression: this is the fail-open an adversarial review found.
+
+    The REST backend used to return False when the order read failed, with a
+    comment claiming that was the safe direction. False means 'not settled',
+    which lets I1 approve — so an unreachable provider silently unlocked the
+    exact action I1 exists to prevent.
+    """
+    from vasool.kernel.gate import Gate
+
+    gate = Gate(POLICY, COSTS, _unreadable)
+    review = gate.review(f.proposal(), f.case(), f.T0)
+    assert not review.allowed
+    assert Denial.SETTLEMENT_UNKNOWN in review.verdict.denials
+    assert "I1" in review.verdict.invariant_ids
+
+
+@pytest.mark.parametrize("intervention", [
+    Intervention.RETRY_SAME_RAIL, Intervention.RETRY_ALT_RAIL,
+    Intervention.PAYMENT_LINK, Intervention.PART_PAYMENT_LINK,
+    Intervention.INSTRUMENT_REFRESH, Intervention.MANDATE_REREGISTER,
+])
+def test_no_money_moving_intervention_survives_an_unreadable_provider(intervention):
+    from vasool.kernel.gate import Gate
+
+    gate = Gate(POLICY, COSTS, _unreadable)
+    proposal = f.proposal(intervention, channel=Channel.WHATSAPP)
+    assert not gate.review(proposal, f.case(), f.T0).allowed
+
+
+def test_actions_that_move_no_money_are_unaffected_by_an_unreadable_provider():
+    """A WAIT or a STOP does not need a reachable provider to be safe."""
+    from vasool.kernel.gate import Gate
+
+    gate = Gate(POLICY, COSTS, _unreadable)
+    for intervention in (Intervention.WAIT, Intervention.STOP):
+        proposal = f.proposal(intervention, amount_paise=0, channel=Channel.NONE)
+        review = gate.review(proposal, f.case(), f.T0)
+        assert review.allowed, intervention
+
+
+def test_an_unreadable_settlement_is_not_repairable():
+    """Re-proposing cannot make a provider reachable, so do not loop on it."""
+    from vasool.kernel.gate import Gate, repairable
+
+    gate = Gate(POLICY, COSTS, _unreadable)
+    assert not repairable(gate.review(f.proposal(), f.case(), f.T0))
+
+
+def test_the_gate_counts_failed_settlement_reads():
+    from vasool.kernel.gate import Gate
+
+    gate = Gate(POLICY, COSTS, _unreadable)
+    gate.review(f.proposal(), f.case(), f.T0)
+    assert gate.settlement_reads_failed == 1

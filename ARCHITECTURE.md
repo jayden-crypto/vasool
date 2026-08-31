@@ -94,7 +94,17 @@ So I1 does not read case state. It reads live provider state, through a
 Stale local belief is exactly the thing being defended against, so consulting it
 would defeat the invariant.
 
-**What it costs:** one API read per money action.
+**Unknown is not unsettled.** If the provider cannot be read, `is_settled`
+raises rather than returning False, and the Gate denies every money-moving
+action with `SETTLEMENT_UNKNOWN`. An earlier version returned False on a read
+failure with a comment claiming that was the safe direction; it was the
+opposite, since False means "not settled" and lets I1 approve. An adversarial
+review found it. Actions that move no money are unaffected — a WAIT does not
+need a reachable provider.
+
+**What it costs:** one API read per money action, and an outage stops recovery
+rather than risking a double charge. That is the correct trade for this
+invariant and it should be a deliberate one.
 
 **Measured:** 9% of benchmark cases settle out of band. Ungated arms register
 36–60 double-collect attempts across 500 cases; the gated arm registers zero and
@@ -124,11 +134,23 @@ exactly, unless the intervention is `PART_PAYMENT_LINK` and both policy and
 merchant allow it, in which case it must clear the higher of the two floors.
 
 This is the invariant that makes prompt injection a non-event. The property test
-in `test_properties.py` states it directly: over arbitrary proposals — any
+in `test_properties.py` states it precisely: over arbitrary proposals — any
 intervention, any channel, amounts up to a billion paise, any currency, any case
-history — **nothing the Gate approves ever collects more than the order.** That
-holds regardless of what the model was persuaded to ask for, which is why the
-defence is structural rather than a filter that has to keep up with new phrasings.
+history — **no single action the Gate approves ever collects more than the
+order.** That holds regardless of what the model was persuaded to ask for, which
+is why the defence is structural rather than a filter chasing new phrasings.
+
+**Be exact about the scope**, because the stronger version is tempting and is
+not what is tested. The property is *per action*. Cumulative conservation across
+several actions on one order holds in this system too, but by a different
+mechanism: a successful collection closes the case (`CaseStatus.RECOVERED`), and
+I1 refuses anything further on a settled order. That is a property of the case
+lifecycle rather than of an invariant, and it is **not established under
+concurrency** — two proposals gated simultaneously against the same order could
+each read "unsettled" before either executes. Nothing in this system runs
+concurrently, so the race is unreachable today; it is an unproven guarantee
+rather than a live defect, and closing it properly means a provider-side
+reservation, not another invariant.
 
 ### I4 — `contact_budget`
 

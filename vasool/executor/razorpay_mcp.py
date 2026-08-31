@@ -33,7 +33,11 @@ from vasool.core.types import (
     CaseState,
     Intervention,
 )
-from vasool.executor.backend import ProviderError, UnknownOutcome
+from vasool.executor.backend import (
+    ProviderError,
+    SettlementUnknown,
+    UnknownOutcome,
+)
 from vasool.executor.razorpay_rest import LINK_DESCRIPTION, UNSUPPORTED_LIVE
 
 PROTOCOL_VERSION = "2024-11-05"
@@ -131,11 +135,14 @@ class RazorpayMcpBackend:
         self.client = client or McpStdioClient()
 
     def is_settled(self, case: CaseState) -> bool:
+        """See RazorpayRestBackend.is_settled — unknown is not unsettled."""
         try:
             order = self.client.call_tool(
                 "fetch_order", {"order_id": case.event.order_id})
-        except ProviderError:
-            return False
+        except (ProviderError, BrokenPipeError, TimeoutError) as exc:
+            raise SettlementUnknown(
+                f"cannot read order {case.event.order_id}: {exc}"
+            ) from exc
         return order.get("status") == "paid" or int(order.get("amount_paid", 0)) > 0
 
     def execute(

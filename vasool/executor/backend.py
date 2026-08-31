@@ -32,11 +32,26 @@ class ProviderError(Exception):
     """A write definitively failed. Safe to treat as a non-event."""
 
 
+class SettlementUnknown(Exception):
+    """The settlement state of an order could not be read.
+
+    Distinct from "not settled", and the distinction is the whole point. I1
+    exists to stop a second collection, so an unreadable provider must block
+    money movement rather than wave it through. Collapsing unknown into
+    unsettled is a fail-open on the one invariant that guards against
+    double-charging a customer.
+    """
+
+
 class PaymentsBackend(Protocol):
     name: str
 
     def is_settled(self, case: CaseState) -> bool:
-        """Fresh read: has this order been paid, through any route?"""
+        """Fresh read: has this order been paid, through any route?
+
+        Raises ``SettlementUnknown`` when the answer cannot be determined. It
+        must never return False to mean "could not tell".
+        """
         ...
 
     def execute(

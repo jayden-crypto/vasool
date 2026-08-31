@@ -272,7 +272,7 @@ make bench
 make faults
 ```
 
-`make faults` breaks nine things on purpose and checks that each lands somewhere
+`make faults` breaks ten things on purpose and checks that each lands somewhere
 safe. `make bench-full` adds the model-backed arms.
 
 A complete audit ledger from a real run is committed, so you can read the
@@ -330,7 +330,7 @@ randomness — every one is property-tested in isolation.
 
 | | | Prevents |
 |---|---|---|
-| **I1** | `no_double_collect` | Chasing money that already arrived. Re-reads *live* provider state, because the case's own belief is exactly what is stale. |
+| **I1** | `no_double_collect` | Chasing money that already arrived. Re-reads *live* provider state, because the case's own belief is exactly what is stale. An unreadable provider denies rather than defaulting to "unsettled". |
 | **I2** | `idempotent_write` | One decision becoming two charges via a model retry, a crash, or a duplicate webhook. |
 | **I3** | `amount_conserving` | Anything — a hallucination, a corrupted field, a customer's typed instruction — changing what gets charged. |
 | **I4** | `contact_budget` | A loop that is reasonable at each step and harassment in aggregate. Quiet hours, cooling-off, rolling caps. |
@@ -422,7 +422,7 @@ vibes, and it is what showed the headroom was concentrated in one narrow place
 make faults
 ```
 
-Nine scenarios, all green, all also running under `pytest`:
+Ten scenarios, all green, all also running under `pytest`:
 
 | Injected fault | Designed response |
 |---|---|
@@ -433,6 +433,7 @@ Nine scenarios, all green, all also running under `pytest`:
 | The same intent is delivered twice | I2 recognises the key; charged once |
 | Process dies mid-batch | Write-ahead ledger reconstructs exactly what was attempted |
 | **Prompt injection in a customer's reply** | The model has no authority; I3 settles it |
+| Settlement state unreadable when a money action is due | Unknown is not unsettled — every money-moving action denied |
 | Compromised model targets an opted-out customer | I5 is terminal |
 | Model asserts a diagnosis the evidence refutes | I6 re-derives futility itself |
 
@@ -441,8 +442,11 @@ The injection case is the one worth dwelling on. The customer's message says
 in that scenario **is** fooled — it proposes collecting ₹50,000 on a ₹2,724
 order. It does not matter. It never held the authority to move a rupee, and I3
 rejects the number. The defence is structural, not a filter, and there is a
-property test asserting it over 400 randomly generated proposals: *nothing the
-Gate approves ever collects more than the order.*
+property test asserting it over 400 randomly generated proposals: *no single
+action the Gate approves ever collects more than the order.* The scope of that
+claim — per action, not cumulative, and not under concurrency — is spelled out
+in [ARCHITECTURE.md](ARCHITECTURE.md#i3--amount_conserving) and
+[LIMITATIONS.md](LIMITATIONS.md).
 
 ---
 
@@ -478,7 +482,7 @@ vasool/
 │   ├── classify.py        classification-only benchmark, one call per case
 │   ├── runner.py          scores one arm, credits nothing it did not earn
 │   └── report.py          the tables above
-├── faults/            ← nine ways to break it on purpose
+├── faults/            ← ten ways to break it on purpose
 ├── core/              ← value types, policy loading, .env
 └── cli/               ← trace (ledger viewer) · live (test-mode demo)
 config/                ← policy · costs · priors · generator, all committed

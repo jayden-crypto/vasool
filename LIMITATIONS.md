@@ -87,6 +87,25 @@ The reported accuracy compares the arm's first classification against hidden
 ground truth. Later re-diagnoses within the same case are not scored, so the
 number describes cold-start judgment, not how well an arm updates.
 
+## Amount conservation is per action, and not proven under concurrency
+
+The property test establishes that **no single approved action collects more
+than the order**. Cumulative conservation across several actions on one order
+also holds, but through the case lifecycle rather than an invariant: a
+successful collection closes the case, and I1 refuses anything further on a
+settled order.
+
+That is weaker than it sounds in one specific way. Two proposals gated
+*simultaneously* against the same order could each read "unsettled" before
+either executes, and I2's key is derived from the decision — so two genuinely
+different decisions produce different keys and would not collide. Nothing in
+this system runs concurrently, so the race is unreachable as written. But the
+guarantee is a property of the runner's sequencing, not of the kernel, and a
+production deployment with parallel workers would need a provider-side
+reservation or a per-order lock before the claim holds.
+
+Found by an adversarial review, not by me.
+
 ## The router result rests on 7 contradictory cases
 
 The routing finding — 91.7% against a 93.3% ceiling — is measured on N=60, of

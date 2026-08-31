@@ -28,7 +28,11 @@ from vasool.core.types import (
     CaseState,
     Intervention,
 )
-from vasool.executor.backend import ProviderError, UnknownOutcome
+from vasool.executor.backend import (
+    ProviderError,
+    SettlementUnknown,
+    UnknownOutcome,
+)
 
 API_ROOT = "https://api.razorpay.com/v1"
 
@@ -106,14 +110,20 @@ class RazorpayRestBackend:
     # -- PaymentsBackend ----------------------------------------------------
 
     def is_settled(self, case: CaseState) -> bool:
-        """Fresh read of the order. This is I1's source of truth."""
+        """Fresh read of the order. This is I1's source of truth.
+
+        Raises rather than guessing. An earlier version returned False when the
+        read failed, with a comment claiming that was the safe direction. It was
+        the opposite: False means "not settled", which lets I1 approve, so an
+        unreachable provider silently unlocked exactly the money action I1 is
+        there to prevent.
+        """
         try:
             order = self._request("GET", f"/orders/{case.event.order_id}")
-        except ProviderError:
-            # Unknown is not the same as settled. Fail closed on the safe side:
-            # report unsettled so the Gate's other invariants still apply, and
-            # let the caller see the error in the ledger.
-            return False
+        except (ProviderError, UnknownOutcome) as exc:
+            raise SettlementUnknown(
+                f"cannot read order {case.event.order_id}: {exc}"
+            ) from exc
         return order.get("status") == "paid" or int(order.get("amount_paid", 0)) > 0
 
     def execute(

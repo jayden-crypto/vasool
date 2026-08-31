@@ -13,7 +13,14 @@ from datetime import datetime
 from typing import Protocol
 
 from vasool.core.policy import Costs, Policy
-from vasool.core.types import ActionProposal, CaseState, Verdict
+from vasool.core.types import (
+    MONEY_MOVING,
+    ActionProposal,
+    CaseState,
+    Denial,
+    Verdict,
+)
+from vasool.executor.backend import SettlementUnknown
 from vasool.kernel.invariants import ALL_INVARIANTS, GateContext
 
 
@@ -23,6 +30,9 @@ class SettlementReader(Protocol):
     Implemented against the simulator in benchmarks and against Razorpay's
     orders API in the live path. It must not read from local case state — the
     entire value of I1 is that it catches a case whose local state is stale.
+
+    It raises ``SettlementUnknown`` when it cannot tell, and never returns
+    False to mean "could not determine".
     """
     def __call__(self, case: CaseState) -> bool: ...
 
@@ -53,6 +63,7 @@ class Gate:
         self._read_settlement = settlement_reader
         self.reviews_performed = 0
         self.denials_issued = 0
+        self.settlement_reads_failed = 0
 
     def review(
         self, proposal: ActionProposal, case: CaseState, now: datetime,
@@ -64,13 +75,37 @@ class Gate:
         that shows a single reason under-reports how wrong a proposal was.
         """
         self.reviews_performed += 1
+
+        try:
+            live_settled = self._read_settlement(case)
+        except SettlementUnknown as exc:
+            # Unknown is not unsettled. If we cannot establish that the money
+            # has not already arrived, nothing that could collect it may run.
+            # Actions that move no money are unaffected — a WAIT or a STOP does
+            # not need a reachable provider.
+            self.settlement_reads_failed += 1
+            if proposal.intervention in MONEY_MOVING:
+                self.denials_issued += 1
+                return Review(
+                    verdict=Verdict.deny(
+                        Denial.SETTLEMENT_UNKNOWN, "I1",
+                        f"settlement state unreadable: {exc}",
+                    ),
+                    context=GateContext(
+                        proposal=proposal, case=case, now=now,
+                        policy=self.policy, costs=self.costs,
+                        live_settled=False,
+                    ),
+                )
+            live_settled = False
+
         ctx = GateContext(
             proposal=proposal,
             case=case,
             now=now,
             policy=self.policy,
             costs=self.costs,
-            live_settled=self._read_settlement(case),
+            live_settled=live_settled,
         )
 
         verdict = Verdict.allow()
@@ -89,10 +124,9 @@ def repairable(review: Review) -> bool:
     budget exhaustion are facts about the world — re-proposing cannot help, and
     asking a model to try again against a wall is how loops are born.
     """
-    from vasool.core.types import Denial
-
     terminal = {
         Denial.ALREADY_COLLECTED,
+        Denial.SETTLEMENT_UNKNOWN,
         Denial.CONSENT_WITHDRAWN,
         Denial.CONTACT_BUDGET_EXCEEDED,
         Denial.ATTEMPT_CAP_REACHED,
