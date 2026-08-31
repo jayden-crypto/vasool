@@ -3,7 +3,7 @@
   "seed": 20260905,
   "n_cases": 500,
   "at_risk_paise": 92399500,
-  "generated_at": "20260831-134420",
+  "generated_at": "20260831-135221",
   "provider": "ollama \u00b7 qwen2.5:7b @ http://localhost:11434 (local, free)",
   "arms": [
     {
@@ -273,9 +273,9 @@
       "double_collected_cases": 2,
       "out_of_band_paise": 3018400,
       "out_of_band_cases": 17,
-      "actions_executed": 1238,
-      "contacts_made": 711,
-      "action_spend_paise": 52276,
+      "actions_executed": 1253,
+      "contacts_made": 726,
+      "action_spend_paise": 127459,
       "stopped_cases": 251,
       "abandoned_cases": 0,
       "closed_settled_elsewhere": 0,
@@ -531,15 +531,15 @@
       "harms": {
         "double_collect_attempt": 34,
         "contact_to_opted_out": 0,
-        "quiet_hours_violation": 0,
-        "over_contacted": 159,
+        "quiet_hours_violation": 3,
+        "over_contacted": 170,
         "futile_retry": 0,
         "risk_retry_strike": 0
       },
-      "harm_cost_paise": 6470000,
+      "harm_cost_paise": 6860000,
       "denials": {},
       "diagnosis_stats": {
-        "decisions": 1489,
+        "decisions": 1504,
         "api_calls": 0,
         "cache_hits": 0,
         "schema_failures": 0,
@@ -552,7 +552,7 @@
         "out_of_taxonomy": 0
       },
       "execution_stats": {
-        "executed": 1238,
+        "executed": 1253,
         "denied": 0,
         "unknown_outcomes": 0,
         "reconciled_landed": 0,
@@ -563,7 +563,7 @@
       "classification_correct": 433,
       "classification_total": 500,
       "degraded_decisions": 0,
-      "ledger_records": 2727,
+      "ledger_records": 2757,
       "ledger_valid": true
     },
     {

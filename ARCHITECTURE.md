@@ -228,6 +228,25 @@ where being wrong is cheap.
 **Measured:** 220 futile retries and 27 risk-decline retries in the cron arm.
 Zero in any gated arm.
 
+### Escalation, and what the kernel does with it
+
+`fallback.plan` escalates to `HANDOFF_HUMAN` when the automated ladder is
+exhausted on a balance worth a person's time. Until an adversarial review
+pointed it out, it never did — the intervention was defined, priced and given
+priors, and proposed zero times across 500 cases, so "escalation" in practice
+meant `STOP`.
+
+What happens next is the more interesting half. The planner proposes 566
+handoffs; **arm E executes none of them.** I7's expected-value floor refuses
+every one, because ₹50 of agent time against the remaining recovery probability
+does not clear the threshold. Arm B, with no kernel, executes them freely and
+its action spend rises from ₹523 to ₹1,275.
+
+Whether that refusal is correct depends entirely on whether the priors in
+`config/priors.yaml` are right, and they are hand-written. This is the
+stopping rule doing exactly what it was built to do, on numbers that have never
+been validated against real recovery data — worth stating in both directions.
+
 ### I7 — `stopping_rule`
 
 **Prevents:** the unbounded loop.

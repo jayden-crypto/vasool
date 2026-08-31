@@ -17,7 +17,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta
 
 from vasool.core.policy import Policy
-from vasool.core.types import (
+from vasool.core.types import (  # noqa: F401
     ActionProposal,
     CaseState,
     Channel,
@@ -25,8 +25,15 @@ from vasool.core.types import (
     FailureClass,
     FailureEvent,
     Intervention,
+    rupees,
 )
 from vasool.kernel import raw_evidence
+
+#: Below this, a person's time costs more than the balance is worth. ₹50 of
+#: agent time against a ₹200 order is not escalation, it is a loss — and I7's
+#: expected-value floor now bounds this action too, so the kernel refuses it
+#: independently.
+HANDOFF_FLOOR_PAISE = 100_000
 
 # Reason code -> class. Unambiguous codes resolve here with no text analysis.
 _REASON_TO_CLASS: dict[str, FailureClass] = {
@@ -274,7 +281,25 @@ def plan(
     # A plain attempt cap. Not an invariant — just the counter any competent
     # implementation has, so the baseline is a real opponent and not a
     # strawman that loops until the horizon.
+    #
+    # Exhausting the automated ladder is where escalation belongs, and until an
+    # adversarial review pointed it out this branch went straight to STOP:
+    # HANDOFF_HUMAN was defined, priced and given priors, and never once
+    # proposed across 500 cases. "Compliant escalation" that only ever
+    # terminates is not escalation.
     if spent >= policy.max_money_actions:
+        worth_a_person = event.amount_paise >= HANDOFF_FLOOR_PAISE
+        if worth_a_person and outreach_permitted(case, now, policy):
+            return ActionProposal(
+                case_id=case.case_id, intervention=Intervention.HANDOFF_HUMAN,
+                channel=pick_channel(event, policy),
+                amount_paise=event.amount_paise, currency=event.currency,
+                scheduled_for=now, diagnosis=diagnosis,
+                rationale=(
+                    f"automated ladder exhausted after {spent} actions on "
+                    f"{rupees(event.amount_paise)}; escalating to a person"
+                ),
+            )
         return ActionProposal(
             case_id=case.case_id, intervention=Intervention.STOP,
             channel=Channel.NONE, amount_paise=0, currency=event.currency,

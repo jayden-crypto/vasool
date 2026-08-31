@@ -247,6 +247,32 @@ Arms C and D issue one model call per decision. Responses cache by evidence
 digest in `cache/llm_responses.json`, so a replay is free and byte-identical —
 but the first run is not, and a fresh seed needs a fresh run.
 
+## "Every arm faces the identical world" is true with three caveats
+
+All three found by adversarial review, none of them fatal, none previously
+written down.
+
+**Common random numbers desynchronise almost immediately.** `uniform01` keys on
+`case.attempts` — the arm's *own* counter, incremented only on executed actions.
+The module docstring is precise about this ("at the same attempt index"); the
+README dropped the qualifier. Since arm E executes 1,178 actions to arm B's
+1,238, the pairing holds firmly for the first action on each case and degrades
+after. There are also no confidence intervals anywhere, on a single seed.
+
+**Out-of-band settlement is not exogenous.** It materialises only when the clock
+advances, and the clock advances only when an arm acts. Against a configured 9%
+(45 of 500), arms realise 19–21 — fewer than half ever fire. So "9% settle out
+of band" describes the config, not the run. The direction is conservative: it
+*understates* I1's value, since fewer double-collect opportunities arise than
+configured.
+
+**I4's quiet-hours clause never fires once.** Zero violations across every arm
+on 500 cases — arm B because `next_sane_send_time` already avoids those hours,
+arm C because it makes almost no contacts. One third of the flagship invariant
+is completely unexercised by this benchmark, and the row was silently omitted
+from the README's harm table rather than shown as a zero that means "untested"
+rather than "prevented".
+
 ## Claims the code does not support, stated plainly
 
 Each of these was written more strongly than the implementation warranted, and

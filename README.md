@@ -79,11 +79,16 @@ and the result is much smaller and much more defensible.
 | **Double-collect attempts** | 36 | **34** | **0** |
 | Contacts to opted-out customers | 0 | 0 | 0 |
 | Contacted past their patience | 0 | 159 | 151 |
+| Quiet-hours violations | 0 | 0 | 0 |
 | Futile retries on dead instruments | 220 | **0** | **0** |
 | Retries against issuer risk declines | 27 | **0** | **0** |
 
 Once the baseline has consent and frequency checks, most rows tie. **One does
 not: 34 double-collect attempts against zero.**
+
+The quiet-hours row is a zero that means *untested*, not *prevented* — it never
+fires for any arm in this benchmark. It is shown rather than omitted because a
+row of zeros that proves nothing should be visible.
 
 That is the kernel's irreplaceable contribution, and it is irreplaceable for a
 structural reason rather than an implementation one. Consent and contact
@@ -345,7 +350,10 @@ Four things, each of which costs the agent numbers it could otherwise claim:
    tells you whether it was tuned.
 2. **Common random numbers.** Every draw derives from
    `(seed, case_id, attempt_index, action)`. Two arms taking the same action on
-   the same case get the same roll. The comparison is paired.
+   the same case *at the same attempt index* get the same roll. That qualifier
+   matters: arms execute different numbers of actions, so the pairing is firm on
+   the first action per case and degrades after. Single seed, no confidence
+   intervals.
 3. **Held-out split.** Development ran on the `dev` seed. Everything reported is
    the `test` seed.
 4. **Money the customer paid on their own is never credited.** 9% of cases settle

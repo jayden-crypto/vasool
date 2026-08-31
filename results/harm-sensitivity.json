@@ -3,39 +3,39 @@
   "sweep": [
     {
       "multiplier": 2.0,
-      "b_net_paise": 33120374,
+      "b_net_paise": 32265191,
       "e_net_paise": 35536306,
-      "ratio": 1.073
+      "ratio": 1.101
     },
     {
       "multiplier": 1.0,
-      "b_net_paise": 39590374,
+      "b_net_paise": 39125191,
       "e_net_paise": 40066306,
-      "ratio": 1.012
+      "ratio": 1.024
     },
     {
       "multiplier": 0.5,
-      "b_net_paise": 42825374,
+      "b_net_paise": 42555191,
       "e_net_paise": 42331306,
-      "ratio": 0.988
+      "ratio": 0.995
     },
     {
       "multiplier": 0.25,
-      "b_net_paise": 44442874,
+      "b_net_paise": 44270191,
       "e_net_paise": 43463806,
-      "ratio": 0.978
+      "ratio": 0.982
     },
     {
       "multiplier": 0.1,
-      "b_net_paise": 45413374,
+      "b_net_paise": 45299191,
       "e_net_paise": 44143306,
-      "ratio": 0.972
+      "ratio": 0.974
     },
     {
       "multiplier": 0.0,
-      "b_net_paise": 46060374,
+      "b_net_paise": 45985191,
       "e_net_paise": 44596306,
-      "ratio": 0.968
+      "ratio": 0.97
     }
   ]
 }
