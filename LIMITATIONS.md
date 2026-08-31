@@ -298,17 +298,6 @@ signature, no external anchor. Anyone with write access can rewrite a record and
 recompute the rest, and `verify()` has no independently-known tip to check
 against. Needs an HMAC or an anchor; neither is built.
 
-**Nothing reconstructs state from the ledger.** `Ledger.load` has one caller —
-the trace viewer. There is no `resume` or `rebuild`. The ledger contains what a
-recovery would need; the recovery is not written.
-
-**The idempotency key is stable within a process, not across a restart.** It is
-derived from `scheduled_for`, so a restarted process re-deriving the same
-decision at a new instant computes a different key and I2 does not fire. Genuine
-duplicate delivery of the same in-memory decision is caught; a restart is not.
-The fix is a semantic identity — a decision sequence number — rather than a
-timestamp.
-
 **The MCP reconcile lookup cannot prove absence on a busy account.** The toolset
 offers no filtered lookup, so it fetches a page and scans. It now raises rather
 than reporting a false absence when the page is full, but on a large account it

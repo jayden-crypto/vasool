@@ -20,6 +20,7 @@ from vasool.bench.environment import Environment
 from vasool.bench.generator import generate
 from vasool.core.policy import Costs, Policy
 from vasool.core.types import (
+    ActionProposal,
     CaseState,
     Channel,
     Denial,
@@ -32,6 +33,7 @@ from vasool.executor.executor import Executor
 from vasool.executor.ledger import Ledger
 from vasool.faults import inject
 from vasool.kernel.gate import Gate
+from vasool.kernel.invariants import action_key
 from vasool.kernel.invariants import action_key as inject_key
 
 POLICY = Policy.load()
@@ -233,32 +235,78 @@ def scenario_duplicate_delivery() -> Result:
 
 
 def scenario_crash_mid_batch() -> Result:
-    _, env, case, now = _world()
-    ledger = Ledger()
-    executor = Executor(env, ledger, COSTS)
-    diagnoser = RulesDiagnoser(POLICY)
-    proposal, _ = diagnoser.propose(case, now)
-    if proposal.intervention is Intervention.STOP:
-        return Result("Process dies mid-batch", True,
-                      "ledger reconstructs state", ["case had no action to take"])
-    executor.execute(proposal, case, now)
+    """Kill a run, rebuild from the ledger alone, and refuse to repeat anything.
 
-    # Simulate a crash: throw away the case object, rebuild from the ledger.
-    kinds = [r.kind for r in ledger.for_case(case.case_id)]
-    keys_from_ledger = {
-        r.payload["idempotency_key"] for r in ledger.for_case(case.case_id)
-        if r.kind == "intent"
-    }
-    ok, bad = ledger.verify()
+    The original version of this scenario proved nothing: it read keys out of
+    the still-live in-memory ledger and compared them to the still-live case
+    object, which crashes nothing. An adversarial review said so. This one
+    throws the case objects away and reconstructs from the file.
+    """
+    import tempfile
+    from pathlib import Path
+
+    from vasool.executor.resume import in_flight_keys, rebuild, summarise
+
+    batch, env, _, _ = _world(n=12)
+    path = Path(tempfile.mkdtemp()) / "crash.jsonl"
+    ledger = Ledger(path)
+    executor = Executor(env, ledger, COSTS)
+    gate = Gate(POLICY, COSTS, env.is_settled)
+    diagnoser = RulesDiagnoser(POLICY)
+
+    events = {}
+    for index, event in enumerate(batch.events[:6]):
+        case_id = f"case_{index:04d}"
+        events[case_id] = event
+        case = CaseState(case_id=case_id, event=event, opened_at=event.failed_at)
+        now = event.failed_at + timedelta(hours=6)
+        env.clock = now
+        proposal, _ = diagnoser.propose(case, now)
+        if proposal.intervention in (Intervention.STOP, Intervention.WAIT):
+            continue
+        if gate.review(proposal, case, now).allowed:
+            executor.execute(proposal, case, now)
+    before = sum(1 for _ in ledger)
+    ledger.close()
+    del executor, ledger            # the process "dies"
+
+    # A new process, with nothing but the file.
+    reloaded = Ledger.load(path)
+    rebuilt = rebuild(reloaded, events)
+    stats = summarise(rebuilt.values())
+
+    # Every key the ledger recorded must be refused on resume.
+    fresh_gate = Gate(POLICY, COSTS, env.is_settled)
+    replays_blocked = 0
+    replays_tried = 0
+    for case_id, case in rebuilt.items():
+        now = events[case_id].failed_at + timedelta(hours=6)
+        proposal, _ = diagnoser.propose(case, now)
+        if proposal.intervention in (Intervention.STOP, Intervention.WAIT):
+            continue
+        replayed = ActionProposal(
+            **{**proposal.__dict__, "decision_ordinal": 0})
+        if action_key(replayed) in case.executed_keys:
+            replays_tried += 1
+            if not fresh_gate.review(replayed, case, now).allowed:
+                replays_blocked += 1
+
     return Result(
-        "Process dies mid-batch",
-        passed=ok and "intent" in kinds and keys_from_ledger == case.executed_keys,
-        claim="write-ahead ledger reconstructs exactly what was attempted",
+        "Process dies mid-batch and a new one resumes from the file",
+        passed=reloaded.verify()[0]
+        and len(rebuilt) > 0
+        and stats["actions"] > 0
+        and replays_blocked == replays_tried,
+        claim="state is reconstructed from the ledger alone, and no decision "
+              "the ledger records can be executed a second time",
         observed=[
-            f"chain valid: {ok}" + ("" if ok else f" (bad at {bad})"),
-            f"record kinds: {kinds}",
-            f"executed keys recovered from ledger: {len(keys_from_ledger)}, "
-            f"matching in-memory state: {keys_from_ledger == case.executed_keys}",
+            f"records written before the crash: {before}",
+            f"chain verified on reload: {reloaded.verify()[0]}",
+            f"cases rebuilt from the file: {stats['cases']} "
+            f"({stats['actions']} actions, {stats['recovered']} recovered)",
+            f"decisions in flight when it died: {len(in_flight_keys(reloaded))} "
+            "(treated as executed — the write may have landed)",
+            f"replay attempts refused: {replays_blocked}/{replays_tried}",
         ],
     )
 

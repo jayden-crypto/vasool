@@ -273,11 +273,18 @@ The executor writes the intent record, receives a digest, checks it, and only
 then calls the backend. A crash between the two leaves a chain that says exactly
 how far we got.
 
-**What is not built:** automatic recovery from it. `Ledger.load` has one caller,
-the trace viewer, and there is no `resume` or `rebuild`. The ledger *contains*
-what a resume would need; the resume itself is not implemented, and the
-`crash_mid_batch` scenario demonstrates the record is sufficient rather than
-that recovery works.
+`vasool/executor/resume.py` is the other half: given the file and the events the
+cases were opened for, it rebuilds every case a resumed process should continue
+from. The reconstruction is deliberately pessimistic — an `intent` with no
+matching `outcome` is a decision that was in flight when the process died, so
+its key is marked executed, because the write may have landed and replaying it
+is the failure this subsystem exists to prevent.
+
+The fault scenario now actually crashes: it writes a ledger, discards every case
+object, reloads from the file, rebuilds, and asserts that every decision the
+ledger records is refused on replay. The previous version read keys out of the
+still-live in-memory ledger and compared them to the still-live case, which
+crashed nothing and proved nothing — an adversarial review said so.
 
 The ledger is append-only JSONL where each record commits to the previous
 digest. `verify()` recomputes the chain, `load()` verifies by default, and

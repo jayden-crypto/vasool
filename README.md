@@ -452,7 +452,7 @@ Ten scenarios, all green, all also running under `pytest`:
 | **Razorpay write times out — outcome unknown** | Never blind-retry. Reconcile by idempotency key, then proceed |
 | **…and the reconcile read fails too** | Absence was never proven, so nothing is replayed. The ledger records the ambiguity instead of inventing `action_absent` |
 | The same intent is delivered twice | I2 recognises the key; charged once |
-| Process dies mid-batch | The write-ahead ledger *contains* what was attempted. Automatic recovery from it is not implemented |
+| Process dies mid-batch | A new process rebuilds every case from the ledger file alone, and refuses to re-execute any decision it records |
 | **Prompt injection in a customer's reply** | The model has no authority; I3 settles it |
 | Settlement state unreadable when a money action is due | Unknown is not unsettled — every money-moving action denied |
 | Compromised model targets an opted-out customer | I5 is terminal |
@@ -492,6 +492,7 @@ vasool/
 ├── executor/          ← the only modules that hold credentials
 │   ├── executor.py        I8, and unknown-outcome reconciliation
 │   ├── ledger.py          hash-chained, append-only, write-ahead
+│   ├── resume.py          rebuild case state from the ledger after a crash
 │   ├── razorpay_rest.py   test mode over REST
 │   └── razorpay_mcp.py    test mode over the official MCP server
 ├── bench/             ← the evidence engine
