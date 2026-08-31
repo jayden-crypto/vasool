@@ -195,15 +195,42 @@ class Environment(PaymentsBackend):
     # -- physics ------------------------------------------------------------
 
     def _maybe_settle_out_of_band(self, case: CaseState) -> None:
-        """Some customers just pay. This is what makes I1 earn its place."""
+        """Some customers just pay, on their own schedule and not on ours.
+
+        This used to fire only when an arm advanced the clock, which made it
+        endogenous: a busier arm realised more out-of-band settlements than a
+        quieter one, and against a configured 9% the arms saw 19-21 of 45. The
+        direction was conservative — it understated I1's value — but it meant
+        "9% settle out of band" described the config rather than the run.
+
+        The settlement now happens at its scheduled moment regardless of what
+        any arm does, evaluated against the case's own timeline. Every arm sees
+        the same settlements at the same times.
+        """
         when = self.oob_settlements.get(case.case_id)
-        if when is None or self.clock is None or self.clock < when:
+        if when is None:
             return
         order_id = case.event.order_id
         if order_id in self.settled:
             return
+        # Exogenous: judged against the case's clock, which the environment
+        # advances for every case at the horizon regardless of arm activity.
+        reference = self.clock if self.clock is not None else when
+        if reference < when:
+            return
         self.settled[order_id] = case.event.amount_paise
         self.oob_collected[case.case_id] = case.event.amount_paise
+
+    def settle_all_due(self, cases: dict[str, CaseState], now: datetime) -> None:
+        """Advance out-of-band settlement for every case, not just active ones.
+
+        Called by the runner at the end of each case so the realised rate
+        matches the configured one instead of tracking how busy an arm was.
+        """
+        previous, self.clock = self.clock, now
+        for case in cases.values():
+            self._maybe_settle_out_of_band(case)
+        self.clock = previous
 
     def _p_success(
         self, h: HiddenState, event: FailureEvent, proposal: ActionProposal,

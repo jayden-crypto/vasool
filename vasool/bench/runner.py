@@ -275,7 +275,20 @@ def run_arm(
             result.abandoned_cases += 1
         result.contacts_made += len(case.contacts)
 
-    # Out-of-band settlements are the customer's doing. No arm gets the credit.
+    # Out-of-band settlements are the customer's doing, and they happen whether
+    # or not an arm is busy. Sweep the horizon so the realised rate matches the
+    # configured one rather than tracking how many actions the arm took.
+    if isinstance(backend, Environment):
+        horizon_end = max(e.failed_at for e in batch.events) + timedelta(
+            days=policy.horizon_days)
+        all_cases = {
+            f"case_{i:04d}": CaseState(case_id=f"case_{i:04d}", event=e,
+                                       opened_at=e.failed_at)
+            for i, e in enumerate(batch.events)
+        }
+        backend.settle_all_due(all_cases, horizon_end)
+
+    # No arm gets the credit.
     result.out_of_band_cases = len(env.oob_collected)
     result.out_of_band_paise = sum(env.oob_collected.values())
 

@@ -380,8 +380,9 @@ Four things, each of which costs the agent numbers it could otherwise claim:
    intervals.
 3. **Held-out split.** Development ran on the `dev` seed. Everything reported is
    the `test` seed.
-4. **Money the customer paid on their own is never credited.** 9% of cases settle
-   out of band mid-workflow. No arm gets the credit, and money collected on an
+4. **Money the customer paid on their own is never credited.** Out-of-band
+   settlements are scheduled exogenously and swept across the whole horizon, so
+   they do not depend on how busy an arm was. No arm gets the credit, and money collected on an
    order that was already settled counts as a double charge, not a recovery.
 
 The harm ledger is measured by the environment, independently of the arm — and
@@ -525,6 +526,27 @@ results/               ← every result file behind the tables above, plus one
 | `RAZORPAY_KEY_ID` / `RAZORPAY_KEY_SECRET` | Test keys for `make live`. The client refuses to start on a `rzp_live_` key. |
 | `VASOOL_MCP_CMD` | How to launch `razorpay-mcp-server` for the MCP backend. |
 | `VASOOL_MODEL` / `VASOOL_EFFORT` | Model id and effort for the diagnosis layer. |
+
+## How this repository changed under review
+
+Two adversarial audits found fourteen things. Ten are fixed in code, four are
+documented in [LIMITATIONS.md](LIMITATIONS.md) with the fix that was not made.
+
+The three that mattered most all made the headline *smaller*:
+
+1. **The router's model was redundant.** Detecting a code/prose disagreement
+   requires computing the prose classification, so the router already held the
+   answer it was paying a model for. One line of Python beats it.
+2. **The baseline was unfair.** It had no consent check and no contact cap, so
+   89% of its measured harm came from two checks it was never given. The
+   kernel's advantage fell from 2.02× to 1.02×.
+3. **The harm ledger shared code with the kernel.** Four of six harms were
+   measured with the kernel's own evidence reader, so a misleading error code
+   fooled both identically. Fixing it turned two of the kernel's zeros into 7
+   and 4.
+
+None of those were caught by writing more tests. All three were caught by
+someone trying to break the claim.
 
 Built for the [Razorpay AI Buildathon](https://razorpay.com/buildathon/),
 Track 3 — AI Revenue Recovery.

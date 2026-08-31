@@ -258,10 +258,10 @@ Arms C and D issue one model call per decision. Responses cache by evidence
 digest in `cache/llm_responses.json`, so a replay is free and byte-identical —
 but the first run is not, and a fresh seed needs a fresh run.
 
-## "Every arm faces the identical world" is true with three caveats
+## "Every arm faces the identical world" — two of three caveats now closed
 
-All three found by adversarial review, none of them fatal, none previously
-written down.
+All three found by adversarial review. Two are fixed; the third is inherent and
+is stated rather than removed.
 
 *(The single-seed half of this is now addressed: `make replicate` reports twelve
 independent worlds, E/B = 1.043 ± 0.020, ahead in 10 of 12. The pairing caveat
@@ -274,12 +274,16 @@ README dropped the qualifier. Since arm E executes 1,178 actions to arm B's
 1,238, the pairing holds firmly for the first action on each case and degrades
 after. There are also no confidence intervals anywhere, on a single seed.
 
-**Out-of-band settlement is not exogenous.** It materialises only when the clock
-advances, and the clock advances only when an arm acts. Against a configured 9%
-(45 of 500), arms realise 19–21 — fewer than half ever fire. So "9% settle out
-of band" describes the config, not the run. The direction is conservative: it
-*understates* I1's value, since fewer double-collect opportunities arise than
-configured.
+**Out-of-band settlement is now exogenous — fixed.** It previously materialised
+only when an arm advanced the clock, so a busier arm realised more settlements
+than a quieter one and arms saw 19–21 of a configured 45. The runner now sweeps
+the full horizon for every case regardless of arm activity, and the two rules
+arms see identical counts.
+
+The residual variation is real rather than artifactual: an arm that recovers a
+case before the scheduled settlement means the customer never pays out of band.
+The cron arm, recovering least, sees the most (31 against 25). That is the world
+behaving correctly, not the measurement leaking.
 
 **I4's quiet-hours clause never fires once.** Zero violations across every arm
 on 500 cases — arm B because `next_sane_send_time` already avoids those hours,
