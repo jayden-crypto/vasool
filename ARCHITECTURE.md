@@ -274,9 +274,42 @@ arm E. The model arm stays in the repository because the comparison is the
 finding, and because `VASOOL_PROVIDER` makes re-running it against a stronger
 model a configuration change rather than a rewrite.
 
-This is worth stating plainly rather than softening: the hypothesis this project
-was designed around is unsupported by its own measurement. What survived is the
-part that was supposed to be the plumbing.
+This is worth stating plainly rather than softening: as originally framed, the
+hypothesis is unsupported by its own measurement. A model asked to diagnose
+every case is worse than a lookup table.
+
+### The router, and what the failure actually pointed at
+
+Isolating classification (`vasool/bench/classify.py`, one call per case instead
+of ~5.4) made a stronger model affordable and produced the finding the
+trajectory run was too expensive to reach. On the held-out split with
+`qwen/qwen3.8-27b`:
+
+| Diagnoser | Overall | clean code | prose only | contradictory | calls |
+|---|---:|---:|---:|---:|---:|
+| rules | 81.7% | **100.0%** | 86.2% | **0.0%** | 0 |
+| model, raw | 80.0% | 83.3% | 75.9% | 85.7% | 60 |
+| **model, routed** | **91.7%** | **100.0%** | **86.2%** | **85.7%** | **8** |
+
+The two diagnosers fail in complementary ways, and the aggregate hid it. Rules
+are perfect where the code states the cause and score **zero** where the code
+contradicts the prose. The model is the mirror image.
+
+`vasool/diagnosis/router.py` therefore never asks what the cause is. It asks
+whether the two sources of evidence agree — one class derived from the reason
+code, one from the issuer's message — and escalates only on disagreement.
+Deterministic, no ground truth, no model, auditable in the same way the kernel
+is. It reaches 98% of the ceiling on 13% of the model calls.
+
+The counter-intuitive part is worth keeping: the model is **not** better at
+reading prose. Rules beat it 86.2% to 75.9%. Its advantage is narrowly
+adjudication between contradictory sources — which is a far more defensible
+claim than "models are good at language", and it is the one the architecture
+should have been making from the start.
+
+The router was designed after seeing the test-split breakdown, so both
+escalation modes were validated on the dev split first (76.7% → 86.7%) before
+the test figure was taken.
 
 ---
 

@@ -1,0 +1,94 @@
+{
+  "split": "test",
+  "n": 60,
+  "ceiling": 0.9333333333333333,
+  "rows": [
+    {
+      "model": "rules baseline (no model)",
+      "correct": {
+        "clean_code": 24,
+        "all": 49,
+        "generic_prose": 25
+      },
+      "total": {
+        "clean_code": 24,
+        "all": 60,
+        "generic_prose": 29,
+        "misleading": 7
+      },
+      "stats": {},
+      "errors": {},
+      "seconds": 0.0
+    },
+    {
+      "model": "qwen/qwen3.8-27b",
+      "routes": {},
+      "correct": {
+        "clean_code": 20,
+        "all": 48,
+        "generic_prose": 22,
+        "misleading": 6
+      },
+      "total": {
+        "clean_code": 24,
+        "all": 60,
+        "generic_prose": 29,
+        "misleading": 7
+      },
+      "stats": {
+        "decisions": 60,
+        "api_calls": 0,
+        "cache_hits": 60,
+        "schema_failures": 0,
+        "repairs_attempted": 0,
+        "repairs_succeeded": 0,
+        "api_errors": 0,
+        "breaker_trips": 0,
+        "rate_limited": 0,
+        "degraded": 0,
+        "out_of_taxonomy": 0
+      },
+      "errors": {},
+      "last_error": null,
+      "seconds": 0.0
+    },
+    {
+      "model": "routed \u2192 qwen/qwen3.8-27b",
+      "routes": {
+        "code": 23,
+        "conflict": 8,
+        "prose": 25,
+        "neither": 4,
+        "model_calls_saved": 23
+      },
+      "correct": {
+        "clean_code": 24,
+        "all": 52,
+        "generic_prose": 22,
+        "misleading": 6
+      },
+      "total": {
+        "clean_code": 24,
+        "all": 60,
+        "generic_prose": 29,
+        "misleading": 7
+      },
+      "stats": {
+        "decisions": 60,
+        "api_calls": 0,
+        "cache_hits": 37,
+        "schema_failures": 0,
+        "repairs_attempted": 0,
+        "repairs_succeeded": 0,
+        "api_errors": 0,
+        "breaker_trips": 0,
+        "rate_limited": 0,
+        "degraded": 0,
+        "out_of_taxonomy": 0
+      },
+      "errors": {},
+      "last_error": null,
+      "seconds": 0.0
+    }
+  ]
+}

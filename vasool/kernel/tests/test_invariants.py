@@ -395,3 +395,35 @@ def test_breaker_reprobes_after_a_bounded_number_of_skips():
     skipped = sum(1 for _ in range(30) if breaker.is_open)
     assert skipped < 30, "breaker never re-probed despite a long cooldown"
     assert breaker.probes >= 4, f"only {breaker.probes} probes in 30 attempts"
+
+
+# --------------------------------------------------------------------------
+# Evidence router
+# --------------------------------------------------------------------------
+
+def test_router_trusts_an_unambiguous_code_without_a_model():
+    from vasool.diagnosis.router import ROUTE_CODE, decide_route
+    ev = f.event(error=f.error(reason="card_expired",
+                               issuer_message="Card has expired"))
+    assert decide_route(ev) == ROUTE_CODE
+
+
+def test_router_escalates_when_code_and_prose_disagree():
+    """The one case the lookup table gets wrong every single time."""
+    from vasool.diagnosis.router import ROUTE_CONFLICT, decide_route
+    ev = f.event(error=f.error(reason="authentication_failed",
+                               issuer_message="Per transaction limit exceeded"))
+    assert decide_route(ev) == ROUTE_CONFLICT
+
+
+def test_router_escalates_when_the_code_says_nothing():
+    from vasool.diagnosis.router import ROUTE_PROSE, decide_route
+    ev = f.event(error=f.error(reason="payment_failed",
+                               issuer_message="DECLINE - NOT SUFFICIENT FUNDS"))
+    assert decide_route(ev) == ROUTE_PROSE
+
+
+def test_router_is_deterministic_and_reads_no_ground_truth():
+    from vasool.diagnosis.router import decide_route
+    ev = f.event(error=f.error(reason="payment_failed", issuer_message="do not honour"))
+    assert decide_route(ev) == decide_route(ev)

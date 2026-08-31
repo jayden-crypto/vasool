@@ -1,0 +1,122 @@
+{
+  "split": "test",
+  "n": 60,
+  "ceiling": 0.9333333333333333,
+  "rows": [
+    {
+      "model": "rules baseline (no model)",
+      "correct": {
+        "clean_code": 24,
+        "all": 49,
+        "generic_prose": 25
+      },
+      "total": {
+        "clean_code": 24,
+        "all": 60,
+        "generic_prose": 29,
+        "misleading": 7
+      },
+      "stats": {},
+      "errors": {},
+      "seconds": 0.0
+    },
+    {
+      "model": "openai/gpt-oss-120b",
+      "correct": {
+        "clean_code": 18,
+        "all": 36,
+        "generic_prose": 16,
+        "misleading": 2
+      },
+      "total": {
+        "clean_code": 24,
+        "all": 60,
+        "generic_prose": 29,
+        "misleading": 7
+      },
+      "stats": {
+        "decisions": 60,
+        "api_calls": 60,
+        "cache_hits": 0,
+        "schema_failures": 0,
+        "repairs_attempted": 0,
+        "repairs_succeeded": 0,
+        "api_errors": 23,
+        "breaker_trips": 0,
+        "rate_limited": 0,
+        "degraded": 23,
+        "out_of_taxonomy": 0
+      },
+      "errors": {
+        "ProviderError": 23
+      },
+      "last_error": "ProviderError: HTTP 400: {\"error\":{\"message\":\"Failed to validate JSON. Please adjust your prompt. See 'failed_generation' for more details.\",\"type\":\"invalid_request_error\",\"code\":\"json_validate_failed\",\"failed_generation\":\"\"}}\n",
+      "seconds": 732.7
+    },
+    {
+      "model": "qwen/qwen3.8-27b",
+      "correct": {
+        "clean_code": 20,
+        "all": 48,
+        "generic_prose": 22,
+        "misleading": 6
+      },
+      "total": {
+        "clean_code": 24,
+        "all": 60,
+        "generic_prose": 29,
+        "misleading": 7
+      },
+      "stats": {
+        "decisions": 60,
+        "api_calls": 60,
+        "cache_hits": 0,
+        "schema_failures": 0,
+        "repairs_attempted": 0,
+        "repairs_succeeded": 0,
+        "api_errors": 0,
+        "breaker_trips": 0,
+        "rate_limited": 0,
+        "degraded": 0,
+        "out_of_taxonomy": 0
+      },
+      "errors": {},
+      "last_error": null,
+      "seconds": 455.4
+    },
+    {
+      "model": "openai/gpt-oss-20b",
+      "correct": {
+        "clean_code": 21,
+        "all": 46,
+        "generic_prose": 21,
+        "misleading": 4
+      },
+      "total": {
+        "clean_code": 24,
+        "all": 60,
+        "generic_prose": 29,
+        "misleading": 7
+      },
+      "stats": {
+        "decisions": 60,
+        "api_calls": 60,
+        "cache_hits": 0,
+        "schema_failures": 0,
+        "repairs_attempted": 0,
+        "repairs_succeeded": 0,
+        "api_errors": 12,
+        "breaker_trips": 0,
+        "rate_limited": 0,
+        "degraded": 12,
+        "out_of_taxonomy": 0
+      },
+      "errors": {
+        "RemoteDisconnected": 1,
+        "ProviderError": 11
+      },
+      "last_error": "ProviderError: HTTP 400: {\"error\":{\"message\":\"Failed to generate JSON. Please adjust your prompt. See 'failed_generation' for more details.\",\"type\":\"invalid_request_error\",\"code\":\"json_validate_failed\",\"failed_generation\":\"max completion tokens reached before generating a valid document\"}}\n",
+      "seconds": 723.7
+    }
+  ]
+}

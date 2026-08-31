@@ -15,13 +15,18 @@ emits a typed proposal. A deterministic kernel of eight invariants holds the
 authority and decides. Every decision is written to a hash-chained ledger
 *before* it executes.
 
-**The split is the point, and it survived being tested against my own
-hypothesis.** I expected a language model to beat a rules engine at reading
-contradictory issuer evidence. Measured, a 7B scored 52% against the rules
-baseline's 81% — and the kernel absorbed it, recording zero harms while the
-same model without a kernel double-charged customers. The interesting result is
-not that the model helped. It is that the architecture held when the model did
-not. [Full numbers below.](#arms-c-and-d--measured-and-the-model-lost)
+**Both halves were tested against my own hypothesis, and both answers were
+surprising.** I expected a language model to beat a rules engine at reading
+issuer evidence. Used naively it does not — it loses to a lookup table. Used
+*only where the reason code and the issuer's own message disagree*, it reaches
+**91.7% against a 93.3% ceiling** on an eighth of the model calls. And when a
+weak model was wired in, the kernel absorbed it: zero harms, while the same
+model without a kernel double-charged customers.
+
+So the architecture's claim narrowed and got sharper. It is not that a model
+reads evidence better. It is that a model adjudicates *conflicting* evidence
+better, and that a deterministic layer should decide when to ask it — and
+whether to let it touch money.
 
 ---
 
@@ -88,7 +93,7 @@ and **roughly doubles net value**.
 > `config/generator.yaml` so you can check it was not shaped to flatter the
 > agent. Relative comparisons are the finding. Absolute rates are not a forecast.
 
-### Arms C and D — measured, and the model lost
+### Arms C and D — measured on a local 7B, and it lost
 
 All five arms, N=100, held-out seed, `qwen2.5:7b` running locally on a laptop.
 Arms C and D share model, prompt, effort and cache; the only difference between
@@ -104,11 +109,14 @@ them is the kernel.
 | **Net value** | ₹46,086 | ₹34,839 | ₹45,867 | ₹32,117 | **₹81,908** |
 | **Diagnosis accuracy** | — | **81.0%** | **52.0%** | **52.0%** | **81.0%** |
 
-**The model lost, and badly.** 52% classification against the rules baseline's
+**This model lost, and badly.** 52% classification against the rules baseline's
 81%, on a batch whose ceiling is 98.2%. It did not close the headroom; it fell
-29 points below the floor. The hypothesis this repository was built to test —
-that a language model reading an issuer's own words beats a lookup table when
-the two disagree — is **not supported by a 7B model on this task.**
+29 points below the floor.
+
+That is a result about `qwen2.5:7b`, and it is worth keeping precisely because
+it is unflattering. But it is not the last word — a separate, cheaper study on a
+stronger model found something the trajectory run was too expensive to surface.
+See [The router](#the-router-ask-the-model-only-when-the-evidence-disagrees).
 
 Three things that follow, in order of how much they matter:
 
@@ -144,6 +152,45 @@ runs at 82 seconds per diagnosis. A frontier model may well clear 81% — the
 architecture is unchanged either way, `VASOOL_PROVIDER` selects it, and
 `make bench-full` re-runs the same comparison. Until someone does that, the
 honest statement is that **this result measures a 7B, not language models.**
+
+### The router: ask the model only when the evidence disagrees
+
+The five-arm run costs ~5.4 model calls per case, which is why it ran on a local
+7B. The claim about the model, though, needs **one** call per case — so
+`make classify` isolates it, and that made a better model affordable.
+
+Held-out test split, N=60, `qwen/qwen3.8-27b`:
+
+| Diagnoser | Overall | clean code | prose only | contradictory | model calls |
+|---|---:|---:|---:|---:|---:|
+| rules baseline | 81.7% | **100.0%** | 86.2% | **0.0%** | 0 |
+| model, raw | 80.0% | 83.3% | 75.9% | 85.7% | 60 |
+| **model, routed** | **91.7%** | **100.0%** | **86.2%** | **85.7%** | **8** |
+
+**91.7% against a 93.3% ceiling** — 98% of what the evidence allows. Ten points
+above the rules baseline, 11.7 above the same model used naively, on **an eighth
+of the model spend.**
+
+The two diagnosers fail in exactly complementary ways. Rules are flawless where
+the reason code states the cause and score **zero** where the code contradicts
+the issuer's own message, because a lookup table believes the code. The model
+reverses both: it wins the contradictory cases and degrades the rest by
+second-guessing evidence that was never in doubt.
+
+So `vasool/diagnosis/router.py` never asks *what is the cause*. It asks **do my
+two sources agree** — derive a class from the reason code, derive one from the
+prose, compare — and escalates only on disagreement. That decision is
+deterministic, reads no ground truth, and is as auditable as the kernel.
+
+One finding worth stating because it is counter-intuitive: the model is not
+better at *reading* prose. Rules beat it there, 86.2% to 75.9%. Its only real
+advantage is **adjudicating between two sources that contradict each other**,
+which is a much narrower claim than "models are good at language" and a much
+more useful one.
+
+**On method.** The router was designed after seeing the test-split breakdown,
+which is overfitting risk. Both escalation modes were therefore validated on the
+**dev** split first — 76.7% → 86.7% — before the test number was taken.
 
 ---
 
@@ -344,12 +391,16 @@ So the question was narrow and falsifiable: *how much of those 11.6 points can
 a model recover by weighing an issuer's own words against a machine code that
 disagrees with them?*
 
-**Answered: none of them.** `qwen2.5:7b` scored 52.0% — not 11.6 points above
-the baseline but 29 points below it. The full table is in
-[Arms C and D](#arms-c-and-d--measured-and-the-model-lost). Having the ceiling
-computed first is what makes that statement precise rather than a vibe: the
-model is not close to the limit of what the evidence allows, it is far short of
-what a lookup table already achieves.
+**Answered twice, and the second answer is the interesting one.**
+
+A local `qwen2.5:7b` used naively scored 52.0% — 29 points *below* the baseline,
+not above it. A hosted `qwen3.8-27b` used naively scored 80.0%, still slightly
+below. But the same model behind the evidence router reached **91.7%**, taking
+98% of the headroom the ceiling allows.
+
+Computing the ceiling first is what makes those statements precise rather than
+vibes, and it is what showed the headroom was concentrated in one narrow place
+— which is what made the router obvious once the subset breakdown existed.
 
 ---
 
@@ -397,6 +448,7 @@ vasool/
 │   ├── prompt.py          evidence bundle; untrusted text is fenced
 │   ├── llm.py             circuit breaker, bounded repair, degraded path
 │   ├── providers.py       Anthropic · any OpenAI-shaped endpoint · Ollama
+│   ├── router.py          escalate to the model only on contradictory evidence
 │   ├── fallback.py        the rules baseline *and* the degraded path
 │   ├── cache.py           committed responses → replay without a key
 │   └── warm.py            parallel pre-computation of first diagnoses
@@ -411,6 +463,7 @@ vasool/
 │   ├── environment.py     the referee; measures harms independently
 │   ├── arms/              A cron · B rules · C raw-agent · D vasool · E rules+gate
 │   ├── ceiling.py         how much of the batch is decidable at all
+│   ├── classify.py        classification-only benchmark, one call per case
 │   ├── runner.py          scores one arm, credits nothing it did not earn
 │   └── report.py          the tables above
 ├── faults/            ← nine ways to break it on purpose

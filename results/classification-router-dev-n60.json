@@ -1,0 +1,94 @@
+{
+  "split": "dev",
+  "n": 60,
+  "ceiling": 0.95,
+  "rows": [
+    {
+      "model": "rules baseline (no model)",
+      "correct": {
+        "clean_code": 21,
+        "all": 46,
+        "generic_prose": 25
+      },
+      "total": {
+        "misleading": 10,
+        "all": 60,
+        "generic_prose": 29,
+        "clean_code": 21
+      },
+      "stats": {},
+      "errors": {},
+      "seconds": 0.0
+    },
+    {
+      "model": "qwen/qwen3.8-27b",
+      "routes": {},
+      "correct": {
+        "misleading": 6,
+        "all": 46,
+        "generic_prose": 21,
+        "clean_code": 19
+      },
+      "total": {
+        "misleading": 10,
+        "all": 60,
+        "generic_prose": 29,
+        "clean_code": 21
+      },
+      "stats": {
+        "decisions": 60,
+        "api_calls": 0,
+        "cache_hits": 60,
+        "schema_failures": 0,
+        "repairs_attempted": 0,
+        "repairs_succeeded": 0,
+        "api_errors": 0,
+        "breaker_trips": 0,
+        "rate_limited": 0,
+        "degraded": 0,
+        "out_of_taxonomy": 0
+      },
+      "errors": {},
+      "last_error": null,
+      "seconds": 0.0
+    },
+    {
+      "model": "routed \u2192 qwen/qwen3.8-27b",
+      "routes": {
+        "code": 21,
+        "conflict": 10,
+        "prose": 26,
+        "neither": 3,
+        "model_calls_saved": 21
+      },
+      "correct": {
+        "misleading": 6,
+        "all": 48,
+        "clean_code": 21,
+        "generic_prose": 21
+      },
+      "total": {
+        "misleading": 10,
+        "all": 60,
+        "generic_prose": 29,
+        "clean_code": 21
+      },
+      "stats": {
+        "decisions": 60,
+        "api_calls": 0,
+        "cache_hits": 39,
+        "schema_failures": 0,
+        "repairs_attempted": 0,
+        "repairs_succeeded": 0,
+        "api_errors": 0,
+        "breaker_trips": 0,
+        "rate_limited": 0,
+        "degraded": 0,
+        "out_of_taxonomy": 0
+      },
+      "errors": {},
+      "last_error": null,
+      "seconds": 0.0
+    }
+  ]
+}

@@ -53,12 +53,16 @@ def evidence_style(event, truth: FailureClass) -> str:
     return "misleading"
 
 
-def run_model(model: str, n: int, split: str, console: Console) -> dict[str, Any]:
+def run_model(model: str, n: int, split: str, console: Console,
+              routed: str = "") -> dict[str, Any]:
     batch = generate(split, n_cases=n)
     policy = Policy.load()
     os.environ["VASOOL_MODEL"] = model
-    diagnoser = LLMDiagnoser(policy, provider=providers.resolve(),
-                             cache=ResponseCache())
+    diagnoser: Any = LLMDiagnoser(policy, provider=providers.resolve(),
+                                  cache=ResponseCache())
+    if routed:
+        from vasool.diagnosis.router import RoutedDiagnoser
+        diagnoser = RoutedDiagnoser(policy, diagnoser, mode=routed)
 
     correct: dict[str, int] = defaultdict(int)
     total: dict[str, int] = defaultdict(int)
@@ -85,7 +89,8 @@ def run_model(model: str, n: int, split: str, console: Console) -> dict[str, Any
     diagnoser.close()
     elapsed = time.monotonic() - started
     return {
-        "model": model,
+        "model": (f"routed[{routed}] → {model}") if routed else model,
+        "routes": getattr(diagnoser, "routes", None).as_dict() if routed else {},
         "correct": dict(correct),
         "total": dict(total),
         "stats": diagnoser.stats.as_dict(),
@@ -122,6 +127,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--n", type=int, default=60)
     parser.add_argument("--split", default="test", choices=["dev", "test"])
     parser.add_argument("--models", default="", help="comma-separated model ids")
+    parser.add_argument("--routed", default="",
+                        help="comma-separated model ids to run behind the router")
+    parser.add_argument("--mode", default="conflict_and_prose",
+                        choices=["conflict_and_prose", "conflict_only"])
     parser.add_argument("--out", default=None)
     args = parser.parse_args(argv)
 
@@ -133,6 +142,9 @@ def main(argv: list[str] | None = None) -> int:
     for model in models:
         console.print(f"[dim]running {model}…[/dim]")
         rows.append(run_model(model, args.n, args.split, console))
+    for model in [m.strip() for m in args.routed.split(",") if m.strip()]:
+        console.print(f"[dim]running routed[{args.mode}] → {model}…[/dim]")
+        rows.append(run_model(model, args.n, args.split, console, routed=args.mode))
 
     ceiling = analyse(args.split, args.n)["ceiling"]
 
@@ -157,6 +169,16 @@ def main(argv: list[str] | None = None) -> int:
         f"\n[dim]ceiling for this batch: {ceiling * 100:.1f}%. "
         "'contradictory' is the column the model exists to win.[/dim]"
     )
+    for r in rows:
+        if r.get("routes"):
+            rt = r["routes"]
+            done = sum(rt.get(k, 0) for k in ("code", "conflict", "prose", "neither"))
+            console.print(
+                f"[dim]{r['model']}: {rt.get('model_calls_saved', 0)}/{done} cases "
+                f"answered without a model call "
+                f"(code {rt.get('code',0)} · conflict {rt.get('conflict',0)} · "
+                f"prose {rt.get('prose',0)} · neither {rt.get('neither',0)})[/dim]"
+            )
     for r in rows:
         if r["errors"]:
             console.print(f"[yellow]{r['model']}: {r['errors']}[/yellow]")

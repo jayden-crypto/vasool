@@ -87,6 +87,21 @@ The reported accuracy compares the arm's first classification against hidden
 ground truth. Later re-diagnoses within the same case are not scored, so the
 number describes cold-start judgment, not how well an arm updates.
 
+## The router result rests on 7 contradictory cases
+
+The routing finding — 91.7% against a 93.3% ceiling — is measured on N=60, of
+which only **7 are the contradictory cases the router exists to catch**. The
+model got 6 of 7; the rules baseline got 0 of 7. That is a clean signal and a
+thin one, and a re-run at N=500 would be the first thing to do before quoting
+it anywhere load-bearing.
+
+The router itself was designed **after** observing the per-style breakdown on
+the test split. To limit the overfitting that invites, both escalation modes
+were validated on the dev split first (rules 76.7% → routed 86.7%) and only then
+measured on test. The routing rule reads no ground truth and is deterministic,
+so it cannot be tuned per case — but the *choice* of rule was informed by
+results, and that should be assumed rather than discovered.
+
 ## The model arms measure a 7B, not language models
 
 Arms C and D ran on `qwen2.5:7b` locally, because the hosted free tiers cap at

@@ -83,6 +83,33 @@ _KEYWORDS: list[tuple[tuple[str, ...], FailureClass, float]] = [
 ]
 
 
+def classify_from_code(event: FailureEvent) -> Diagnosis | None:
+    """Classification from the machine-readable reason code alone."""
+    reason = (event.error.reason or "").strip().lower()
+    cls = _REASON_TO_CLASS.get(reason)
+    if cls is None:
+        return None
+    return Diagnosis(
+        failure_class=cls, confidence=0.90,
+        rationale=f"reason code '{reason}' maps directly",
+        evidence_fields=("error.reason",), source="rules",
+    )
+
+
+def classify_from_message(event: FailureEvent) -> Diagnosis | None:
+    """Classification from the issuer's free text alone."""
+    message = (event.error.issuer_message or "").lower()
+    for needles, cls, weight in _KEYWORDS:
+        hit = next((n for n in needles if n in message), None)
+        if hit is not None:
+            return Diagnosis(
+                failure_class=cls, confidence=weight,
+                rationale=f"issuer message matched '{hit}'",
+                evidence_fields=("error.issuer_message",), source="rules",
+            )
+    return None
+
+
 def classify(event: FailureEvent) -> Diagnosis:
     """Deterministic classification from evidence.
 
