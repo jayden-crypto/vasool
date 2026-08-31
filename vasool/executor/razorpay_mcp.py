@@ -21,9 +21,11 @@ from __future__ import annotations
 
 import json
 import os
+import select
 import shlex
 import subprocess
 import threading
+import time
 from datetime import datetime
 from typing import Any, Optional
 
@@ -65,12 +67,25 @@ class McpStdioClient:
             stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
             text=True, bufsize=1, env=env,
         )
+        # Drain stderr on a daemon thread. An undrained pipe fills its buffer
+        # and deadlocks a chatty server — which, combined with a blocking
+        # readline, is a permanent hang with no recovery path.
+        self._stderr_tail: list[str] = []
+        threading.Thread(target=self._drain_stderr, daemon=True).start()
         self._call("initialize", {
             "protocolVersion": PROTOCOL_VERSION,
             "capabilities": {},
             "clientInfo": {"name": "vasool", "version": "0.1.0"},
         })
         self._notify("notifications/initialized", {})
+
+    def _drain_stderr(self) -> None:
+        proc = self._proc
+        if proc is None or proc.stderr is None:
+            return
+        for line in proc.stderr:
+            self._stderr_tail.append(line.rstrip())
+            del self._stderr_tail[:-20]
 
     def _write(self, message: dict[str, Any]) -> None:
         assert self._proc is not None and self._proc.stdin is not None
@@ -89,7 +104,18 @@ class McpStdioClient:
                 "method": method, "params": params,
             })
             assert self._proc is not None and self._proc.stdout is not None
+            # self.timeout used to be stored and never referenced; readline
+            # blocked forever. Enforce it for real.
+            deadline = time.monotonic() + self.timeout
             while True:
+                if time.monotonic() > deadline:
+                    raise ProviderError(
+                        f"MCP call '{method}' timed out after {self.timeout}s"
+                        + (f"; stderr: {self._stderr_tail[-3:]}"
+                           if self._stderr_tail else "")
+                    )
+                if not self._readable(deadline):
+                    continue
                 line = self._proc.stdout.readline()
                 if not line:
                     raise ProviderError("MCP server closed the connection")
@@ -102,6 +128,13 @@ class McpStdioClient:
                 if "error" in message:
                     raise ProviderError(f"MCP error: {message['error']}")
                 return message.get("result", {})
+
+    def _readable(self, deadline: float) -> bool:
+        """Wait for stdout with a deadline, so a silent server cannot hang us."""
+        assert self._proc is not None and self._proc.stdout is not None
+        remaining = max(0.0, deadline - time.monotonic())
+        ready, _, _ = select.select([self._proc.stdout], [], [], min(remaining, 1.0))
+        return bool(ready)
 
     def list_tools(self) -> list[str]:
         self.start()

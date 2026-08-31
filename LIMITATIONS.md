@@ -247,6 +247,37 @@ Arms C and D issue one model call per decision. Responses cache by evidence
 digest in `cache/llm_responses.json`, so a replay is free and byte-identical —
 but the first run is not, and a fresh seed needs a fresh run.
 
+## Claims the code does not support, stated plainly
+
+Each of these was written more strongly than the implementation warranted, and
+found by adversarial review rather than by me.
+
+**The ledger is corruption-evident, not tamper-evident.** Unkeyed SHA-256, no
+signature, no external anchor. Anyone with write access can rewrite a record and
+recompute the rest, and `verify()` has no independently-known tip to check
+against. Needs an HMAC or an anchor; neither is built.
+
+**Nothing reconstructs state from the ledger.** `Ledger.load` has one caller —
+the trace viewer. There is no `resume` or `rebuild`. The ledger contains what a
+recovery would need; the recovery is not written.
+
+**The idempotency key is stable within a process, not across a restart.** It is
+derived from `scheduled_for`, so a restarted process re-deriving the same
+decision at a new instant computes a different key and I2 does not fire. Genuine
+duplicate delivery of the same in-memory decision is caught; a restart is not.
+The fix is a semantic identity — a decision sequence number — rather than a
+timestamp.
+
+**The MCP reconcile lookup cannot prove absence on a busy account.** The toolset
+offers no filtered lookup, so it fetches a page and scans. It now raises rather
+than reporting a false absence when the page is full, but on a large account it
+will simply be unable to reconcile.
+
+**One committed result file predates a fix.** `results/five-arm-local-n100.json`
+reports `repairs_succeeded: 531` against `repairs_attempted: 46` — a counting
+bug fixed in `llm.py` afterwards. Regenerating it means another 12-hour local
+run, so the file stands with this note rather than being quietly refreshed.
+
 ## Not addressed at all
 
 - **Multi-currency.** Everything assumes INR. I3 rejects anything else rather

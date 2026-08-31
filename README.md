@@ -315,7 +315,7 @@ randomness — every one is property-tested in isolation.
 | **I5** | `consent_honored` | An agent finding a "different channel" for someone who asked to be left alone. |
 | **I6** | `no_futile_retry` | Retrying expired cards forever, and the costlier version — retrying issuer risk declines, which degrades the merchant's own decline rate. |
 | **I7** | `stopping_rule` | The unbounded loop. Horizon, attempt cap, and an expected-value floor — three independent termination guarantees. |
-| **I8** | `audit_before_action` | The gap between deciding and acting. Enforced at the executor: no ledger receipt, no action. |
+| **I8** | `audit_before_action` | The gap between deciding and acting. Enforced at the executor: no ledger receipt, no action. Corruption-evident, not tamper-proof — see [LIMITATIONS](LIMITATIONS.md). |
 
 What the kernel bounds is `GATED_INTERVENTIONS` — money movement *and* anything
 else expensive. `HANDOFF_HUMAN` moves no money but costs ₹50, a hundred times a
@@ -416,7 +416,7 @@ Ten scenarios, all green, all also running under `pytest`:
 | **Razorpay write times out — outcome unknown** | Never blind-retry. Reconcile by idempotency key, then proceed |
 | **…and the reconcile read fails too** | Absence was never proven, so nothing is replayed. The ledger records the ambiguity instead of inventing `action_absent` |
 | The same intent is delivered twice | I2 recognises the key; charged once |
-| Process dies mid-batch | Write-ahead ledger reconstructs exactly what was attempted |
+| Process dies mid-batch | The write-ahead ledger *contains* what was attempted. Automatic recovery from it is not implemented |
 | **Prompt injection in a customer's reply** | The model has no authority; I3 settles it |
 | Settlement state unreadable when a money action is due | Unknown is not unsettled — every money-moving action denied |
 | Compromised model targets an opted-out customer | I5 is terminal |

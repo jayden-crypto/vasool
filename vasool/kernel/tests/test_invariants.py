@@ -567,3 +567,60 @@ def test_every_expensive_intervention_is_gated():
     }
     assert expensive <= GATED_INTERVENTIONS, (
         f"ungated but expensive: {expensive - GATED_INTERVENTIONS}")
+
+
+def test_reopening_a_ledger_continues_the_chain_rather_than_restarting_it():
+    """Regression: resuming used to corrupt the file it was resuming.
+
+    seq = len(self._records) with the file opened in append mode meant a second
+    Ledger against an existing path restarted at seq 0 and GENESIS, writing
+    duplicate sequence numbers and a second chain rooted mid-file — on exactly
+    the crash-recovery path the ledger exists to support.
+    """
+    import tempfile
+    from pathlib import Path
+
+    from vasool.executor.ledger import Ledger
+
+    path = Path(tempfile.mkdtemp()) / "chain.jsonl"
+    first = Ledger(path)
+    first.append("intent", "case_1", {"n": 1})
+    first.append("outcome", "case_1", {"n": 2})
+    tip = first.tip
+    first.close()
+
+    resumed = Ledger(path)
+    assert len(resumed) == 2, "existing records were not adopted"
+    assert resumed.tip == tip
+    resumed.append("intent", "case_2", {"n": 3})
+    resumed.close()
+
+    reloaded = Ledger.load(path)
+    assert [r.seq for r in reloaded] == [0, 1, 2]
+    assert reloaded.verify()[0]
+
+
+def test_loading_a_tampered_ledger_raises_instead_of_passing_silently():
+    import json
+    import tempfile
+    from pathlib import Path
+
+    from vasool.executor.ledger import Ledger
+
+    path = Path(tempfile.mkdtemp()) / "chain.jsonl"
+    ledger = Ledger(path)
+    ledger.append("intent", "case_1", {"amount": 100})
+    ledger.append("outcome", "case_1", {"ok": True})
+    ledger.close()
+
+    lines = path.read_text().splitlines()
+    first = json.loads(lines[0])
+    first["payload"]["amount"] = 999999
+    path.write_text("\n".join([json.dumps(first)] + lines[1:]) + "\n")
+
+    try:
+        Ledger.load(path)
+    except ValueError as exc:
+        assert "broken" in str(exc)
+    else:
+        raise AssertionError("a tampered chain loaded without complaint")

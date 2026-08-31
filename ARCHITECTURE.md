@@ -252,12 +252,26 @@ an overconfident diagnosis cannot buy itself more budget. There is a test.
 
 The executor writes the intent record, receives a digest, checks it, and only
 then calls the backend. A crash between the two leaves a chain that says exactly
-how far we got — the `crash_mid_batch` scenario reconstructs the executed
-idempotency keys from the ledger alone and asserts they match in-memory state.
+how far we got.
+
+**What is not built:** automatic recovery from it. `Ledger.load` has one caller,
+the trace viewer, and there is no `resume` or `rebuild`. The ledger *contains*
+what a resume would need; the resume itself is not implemented, and the
+`crash_mid_batch` scenario demonstrates the record is sufficient rather than
+that recovery works.
 
 The ledger is append-only JSONL where each record commits to the previous
-digest. `verify()` recomputes the chain; the demo tampers with a payload and
-watches it fail at the exact sequence number.
+digest. `verify()` recomputes the chain, `load()` verifies by default, and
+reopening an existing file adopts its chain rather than restarting at sequence
+zero — which used to corrupt the file on the resume path.
+
+**Scoped honestly:** the chain is an unkeyed SHA-256. It detects truncation,
+reordering and in-place edits. It does **not** resist an attacker with write
+access, who can rewrite a record and recompute every hash after it — and in a
+payments system that attacker is the party running the process. Making this
+tamper-evident rather than corruption-evident needs an HMAC with a key held
+elsewhere, or an anchor published where the process cannot reach. Neither is
+built.
 
 ---
 
