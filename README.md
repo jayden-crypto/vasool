@@ -275,6 +275,18 @@ make faults
 `make faults` breaks nine things on purpose and checks that each lands somewhere
 safe. `make bench-full` adds the model-backed arms.
 
+A complete audit ledger from a real run is committed, so you can read the
+decision chain without running anything:
+
+```bash
+python -m vasool.cli.trace results/ledger-E-rules-kernel-n100.jsonl --case case_0012
+```
+
+That case is the one worth looking at: a payment link goes out, does not convert,
+and two days later the customer pays through another route. The next scheduled
+action would have charged them twice — `I1` catches it, because it re-read the
+provider instead of trusting the case's own record.
+
 `make live` runs one recovery against a Razorpay test-mode account. The backends
 are implemented but **were never run against a real account** — Razorpay gated
 test keys behind bank verification. Every number in this repository comes from
@@ -470,7 +482,9 @@ vasool/
 ├── core/              ← value types, policy loading, .env
 └── cli/               ← trace (ledger viewer) · live (test-mode demo)
 config/                ← policy · costs · priors · generator, all committed
-results/               ← the committed result files behind every table above
+results/               ← every result file behind the tables above, plus one
+                          full audit ledger you can inspect without running
+                          anything: results/ledger-E-rules-kernel-n100.jsonl
 ```
 
 ## Configuration
