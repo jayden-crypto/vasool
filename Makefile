@@ -1,4 +1,6 @@
-PY := .venv/bin/python
+# Prefer the project venv, fall back to whatever python is on PATH so the
+# targets work on a fresh clone and on Windows.
+PY := $(shell test -x .venv/bin/python && echo .venv/bin/python || echo python3)
 LEDGER := $(shell ls -t runs/*-E-*.jsonl 2>/dev/null | head -1)
 
 .PHONY: help setup test bench bench-dev bench-ledger bench-full bench-local bench-local-quick warm warm-local classify ceiling sensitivity faults trace live live-inject clean
