@@ -263,6 +263,10 @@ but the first run is not, and a fresh seed needs a fresh run.
 All three found by adversarial review, none of them fatal, none previously
 written down.
 
+*(The single-seed half of this is now addressed: `make replicate` reports twelve
+independent worlds, E/B = 1.043 ± 0.020, ahead in 10 of 12. The pairing caveat
+below still stands.)*
+
 **Common random numbers desynchronise almost immediately.** `uniform01` keys on
 `case.attempts` — the arm's *own* counter, incremented only on executed actions.
 The module docstring is precise about this ("at the same attempt index"); the

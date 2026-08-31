@@ -145,10 +145,17 @@ def _rail_for(rng: random.Random, true_class: FailureClass) -> Rail:
 
 
 def generate(split: str = "test", path: Path | None = None,
-             n_cases: int | None = None) -> Batch:
+             n_cases: int | None = None, replicate: int = 0) -> Batch:
+    """Build a batch.
+
+    ``replicate`` draws a different world from the same configuration, so a
+    result can be reported as a distribution rather than a single number. Zero
+    is the canonical split; every other value is an independent draw.
+    """
     cfg: dict[str, Any] = yaml.safe_load((path or CONFIG_PATH).read_text())
     base_seed = int(cfg["seed"])
     seed = base_seed if split == "test" else base_seed + 7717
+    seed += replicate * 104_729                    # a prime, to avoid overlap
     rng = random.Random(seed)
 
     n = n_cases if n_cases is not None else int(cfg["n_cases"])

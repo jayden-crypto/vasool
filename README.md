@@ -71,7 +71,18 @@ and the result is much smaller and much more defensible.
 | Priced harm | ₹21,045 | ₹68,810 | **₹45,435** |
 | **Net value** | ₹3,37,067 | ₹3,91,042 | **₹4,00,528** |
 
-**E beats B by 1.02×.** That is the honest number. Not double.
+**E beats B by 1.02×** on this seed. And because one seed is an anecdote,
+`make replicate` runs twelve independent worlds drawn from the same config:
+
+| | recovery rate | net value |
+|---|---:|---:|
+| A cron | 38.7% ± 1.7 | ₹2,05,590 ± 14,784 |
+| B rules | **48.2% ± 2.0** | ₹2,35,413 ± 15,030 |
+| E rules + kernel | 46.8% ± 2.0 | **₹2,45,557 ± 16,113** |
+
+**E/B = 1.043 ± 0.020 (95% CI), ahead in 10 of 12 worlds.** The gap is small and
+it clears the noise. That is the honest form of the claim — not double, and not
+a single seed's luck either.
 
 ### What the kernel is actually worth
 
