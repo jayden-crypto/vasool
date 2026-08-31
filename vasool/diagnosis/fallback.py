@@ -204,6 +204,36 @@ def pick_channel(event: FailureEvent, policy: Policy) -> Channel:
     return Channel.EMAIL
 
 
+def outreach_permitted(case: CaseState, now: datetime, policy: Policy) -> bool:
+    """Consent and frequency checks a competent implementation would have.
+
+    These were missing from the baseline, and an adversarial review showed that
+    89% of its measured harm came from the two checks it was not given — which
+    made the kernel's advantage look roughly twice as large as it is. An
+    engineer who writes a quiet-hours scheduler in an afternoon also writes
+    ``if customer.opted_out: stop``; the field is right there on the observable
+    profile.
+
+    Note what this is *not*: it is planner logic, so it binds only the planner.
+    The kernel's equivalents (I4, I5) bind every proposal from any source,
+    including a model's. That difference is what arms C and D measure, and it
+    is the honest version of the argument this baseline previously won by
+    default.
+    """
+    customer = case.event.customer
+    if customer.opted_out:
+        return False
+    window_start = now - timedelta(hours=policy.contact_window_hours)
+    if case.contacts_since(window_start) >= policy.max_contacts_per_window:
+        return False
+    last = case.last_contact_at()
+    if last is not None:
+        gap_hours = (now - last).total_seconds() / 3600.0
+        if gap_hours < policy.min_hours_between_contacts:
+            return False
+    return True
+
+
 def next_sane_send_time(now: datetime, delay: timedelta, tz_offset_minutes: int) -> datetime:
     """Push an outreach to the next civilised local hour.
 
@@ -265,6 +295,13 @@ def plan(
             next_sane_send_time(now, delay, event.customer.tz_offset_minutes)
             if is_contact else now + delay
         )
+        if is_contact and not outreach_permitted(case, when, policy):
+            return ActionProposal(
+                case_id=case.case_id, intervention=Intervention.STOP,
+                channel=Channel.NONE, amount_paise=0, currency=event.currency,
+                scheduled_for=now, diagnosis=diagnosis,
+                rationale="outreach not permitted: consent withdrawn or contact budget spent",
+            )
         return ActionProposal(
             case_id=case.case_id,
             intervention=intervention,

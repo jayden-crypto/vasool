@@ -106,9 +106,16 @@ need a reachable provider.
 rather than risking a double charge. That is the correct trade for this
 invariant and it should be a deliberate one.
 
-**Measured:** 9% of benchmark cases settle out of band. Ungated arms register
-36–60 double-collect attempts across 500 cases; the gated arm registers zero and
-closes 19 cases as *settled elsewhere, no credit taken*.
+**Measured:** ungated arms register 34–36 double-collect attempts across 500
+cases; the gated arm registers zero and closes 19 cases as *settled elsewhere,
+no credit taken*.
+
+This is the invariant that survives a fair comparison. Once the rules baseline
+is given consent and contact-frequency checks — which it should always have had
+— every other harm row ties, and net value comes to 1.01×. I1 does not tie,
+because it is the only check that cannot be written as planner logic: whether an
+order was paid moments ago through another channel is not a property of state
+the planner holds. It requires reading the provider at the moment of execution.
 
 ### I2 — `idempotent_write`
 
@@ -175,7 +182,12 @@ Opt-out is terminal for every channel. DND blocks the channels it legally covers
 (SMS, voice) and not the ones it does not — a distinction worth making, because
 collapsing it either over-blocks legitimate email or under-blocks SMS.
 
-**Measured:** 65 contacts to opted-out customers in the ungated arm. Zero gated.
+**Measured:** zero in both arms, now that the baseline has a consent check. The
+earlier figure of 65 measured a baseline that had none, which flattered the
+kernel and was corrected after an adversarial review. The kernel's remaining
+advantage here is architectural rather than numerical: I5 binds every proposal
+from any source, where a planner check binds only that planner. Arms C and D
+measure the difference.
 
 ### I6 — `no_futile_retry`
 

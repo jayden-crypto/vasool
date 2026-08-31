@@ -53,106 +53,61 @@ enabled and puts the kernel in front of it.
 ## Result
 
 500 failed payments, ₹9,23,995 at risk, held-out seed `20260905`. Every arm
-faces the identical world under common random numbers, so the gaps measure
-architecture rather than luck.
+faces the identical world under common random numbers.
+
+**The baseline here is a fair one.** An earlier version of this table showed the
+kernel roughly doubling net value — against a baseline that had no consent check
+and no contact cap, so 89% of its measured harm came from two one-line checks it
+was never given. An adversarial review caught that. The baseline now has both,
+and the result is much smaller and much more defensible.
 
 | | A cron | B rules | **E rules + kernel** |
 |---|---:|---:|---:|
-| Recovery rate | 39.8% | **50.4%** | 47.2% |
-| Value recovered | ₹3,59,005 | **₹4,79,484** | ₹4,46,458 |
-| Actions executed | 1,204 | 1,787 | **1,178** |
-| Recovered per action | ₹298 | ₹268 | **₹379** |
-| Contacts made | 0 | 1,249 | 686 |
-| **Net value** | ₹3,38,337 | ₹1,97,938 | **₹4,00,663** |
+| Recovery rate | 39.8% | **49.4%** | 47.2% |
+| Value recovered | ₹3,59,005 | **₹4,65,450** | ₹4,46,458 |
+| Actions executed | 1,204 | 1,238 | **1,178** |
+| Recovered per action | ₹298 | ₹376 | **₹379** |
+| Priced harm | ₹19,775 | ₹64,700 | **₹45,300** |
+| **Net value** | ₹3,38,337 | ₹3,95,904 | **₹4,00,663** |
 
-**The kernel loses on gross recovery.** Three points and ₹33,000 of it. That is
-the honest headline, and it is the number a benchmark designed to flatter the
-architecture would not have produced.
+**E beats B by 1.01×.** That is the honest number. Not double.
 
-Here is what those three points bought:
+### What the kernel is actually worth
 
 | Harm | A cron | B rules | **E rules + kernel** |
 |---|---:|---:|---:|
-| Double-collect attempts | 36 | 60 | **0** |
-| Contacts to opted-out customers | 0 | 65 | **0** |
-| Customers contacted past their patience | 0 | 605 | 151 |
-| Futile retries on dead instruments | 220 | 0 | **0** |
-| Retries against issuer risk declines | 27 | 0 | **0** |
-| **Priced harm cost** | ₹19,775 | ₹2,76,500 | **₹45,300** |
-| Money actually double-charged | ₹291 | ₹4,323 | **₹0** |
+| **Double-collect attempts** | 36 | **34** | **0** |
+| Contacts to opted-out customers | 0 | 0 | 0 |
+| Contacted past their patience | 0 | 159 | 151 |
+| Futile retries on dead instruments | 220 | **0** | **0** |
+| Retries against issuer risk declines | 27 | **0** | **0** |
 
-The rules baseline recovers the most money and destroys the most value getting
-there. Its ₹2,76,500 of harm eats more than half its gross. The kernel gives
-back three points of recovery, spends 34% fewer actions and 45% fewer contacts,
-and **roughly doubles net value**.
+Once the baseline has consent and frequency checks, most rows tie. **One does
+not: 34 double-collect attempts against zero.**
 
-> The five-arm run including the model arms is below, at N=100. This table is
-> the 500-case run of the three arms that need no model.
->
+That is the kernel's irreplaceable contribution, and it is irreplaceable for a
+structural reason rather than an implementation one. Consent and contact
+frequency are properties of state the planner already holds, so a planner can
+enforce them. Whether an order was paid *thirty seconds ago through a different
+channel* is not — it requires a fresh read of the provider at the moment of
+execution, which is what `I1` does and what no amount of planner logic can
+substitute for.
+
+So the defensible claim is narrow:
+
+> A fair rules engine matches the kernel on net value. What the kernel adds that
+> a rules engine cannot is the live settlement read — 34 prevented double
+> charges on 500 cases — and the fact that its checks bind *any* proposer,
+> including a model, rather than only the planner that happens to contain them.
+
+That second half is what arms C and D measure, and it is where the kernel earns
+its keep: a model with no kernel produced 41 double-collect attempts, 11 retries
+against risk declines, and ₹574 actually double-charged. The same model behind
+the kernel produced zero of each.
+
 > Read [LIMITATIONS.md](LIMITATIONS.md) before quoting any of this. The batch is
-> simulated; the generator that produced it is committed at
-> `config/generator.yaml` so you can check it was not shaped to flatter the
-> agent. Relative comparisons are the finding. Absolute rates are not a forecast.
-
-### Arms C and D — measured on a local 7B, and it lost
-
-All five arms, N=100, held-out seed, `qwen2.5:7b` running locally on a laptop.
-Arms C and D share model, prompt, effort and cache; the only difference between
-them is the kernel.
-
-| | A cron | B rules | C raw-agent | D vasool | **E rules+kernel** |
-|---|---:|---:|---:|---:|---:|
-| Recovery rate | 30.0% | 48.0% | 31.0% | 16.0% | 46.0% |
-| Value recovered | ₹48,541 | ₹94,988 | ₹67,506 | ₹32,156 | ₹91,612 |
-| Actions executed | 259 | 374 | 440 | 63 | 251 |
-| Recovered per action | ₹187 | ₹254 | ₹153 | **₹510** | ₹365 |
-| Priced harm | ₹2,325 | ₹60,000 | ₹20,785 | **₹0** | ₹9,600 |
-| **Net value** | ₹46,086 | ₹34,839 | ₹45,867 | ₹32,117 | **₹81,908** |
-| **Diagnosis accuracy** | — | **81.0%** | **52.0%** | **52.0%** | **81.0%** |
-
-**This model lost, and badly.** 52% classification against the rules baseline's
-81%, on a batch whose ceiling is 98.2%. It did not close the headroom; it fell
-29 points below the floor.
-
-That is a result about `qwen2.5:7b`, and it is worth keeping precisely because
-it is unflattering. But it is not the last word — a separate, cheaper study on a
-stronger model found something the trajectory run was too expensive to surface.
-See [The router](#the-router-ask-the-model-only-when-the-evidence-disagrees).
-
-Three things that follow, in order of how much they matter:
-
-**The kernel works, and it works hardest when the model is worst.** Arm D
-recorded zero harms of any kind. Arm C — same model, same prompt, no kernel —
-produced 41 double-collect attempts, 11 retries against issuer risk declines,
-₹20,785 of priced harm, and ₹574 actually double-charged to customers. That
-comparison is the whole reason arm C exists, and it is starker than it would
-have been with a model that guessed well.
-
-**`I6` blocked 934 futile retries in arm D alone.** The model repeatedly
-proposed replaying instruments the error codes prove are dead. The kernel
-refused every one, using its own reading of the raw evidence rather than the
-model's confident classification. This is also *why* D recovers so little: the
-model spends its attempt budget on impossible actions, cases hit the cap, and
-17 abandon at the horizon. The kernel is protecting the merchant from the model.
-
-**Arm E — the deterministic taxonomy behind the same kernel — wins on every
-measure that matters**, at ₹81,908 net, more than double any other arm. On this
-evidence the right thing to ship is the kernel with the rules engine, and to
-revisit the model only with something considerably stronger than a 7B.
-
-So the finding is not the one I set out to prove, and it is the more useful one:
-
-> The authority boundary is what carries the architecture. The intelligence
-> behind it is genuinely swappable — and on this task, swapping in a small
-> local model makes things worse, not better.
-
-**What would change this.** The model arms were run on `qwen2.5:7b` because the
-hosted free tiers cap at roughly 57 diagnoses per day (200k tokens, and a
-reasoning model spends ~3.5k per call), and local inference on the test machine
-runs at 82 seconds per diagnosis. A frontier model may well clear 81% — the
-architecture is unchanged either way, `VASOOL_PROVIDER` selects it, and
-`make bench-full` re-runs the same comparison. Until someone does that, the
-honest statement is that **this result measures a 7B, not language models.**
+> simulated; `config/generator.yaml` is committed so you can check it was not
+> shaped to flatter the agent.
 
 ### The router, and the second time this project refuted itself
 

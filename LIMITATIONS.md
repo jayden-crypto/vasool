@@ -1,7 +1,24 @@
 # Limitations
 
-Written before anyone had to ask. Every number in the README should be read
-against this page.
+Written before anyone had to ask, and revised twice after adversarial reviews
+found things this page had missed. Every number in the README should be read
+against it.
+
+## The comparison was unfair, and that is now fixed
+
+The most load-bearing correction in this repository. The original rules baseline
+had **no consent check and no contact-frequency cap** — 89% of its measured harm
+came from two one-line checks it was never given. That made the kernel appear to
+roughly double net value.
+
+With the baseline corrected, **the kernel's net advantage is 1.01×.** What
+survives is one row: 34 double-collect attempts against zero, because `I1`
+requires a live provider read that no planner logic can substitute for.
+
+The general lesson, recorded because it is the more useful finding: this project
+was rigorous about provenance — seeds, sample sizes, which model produced which
+number — and casual about whether the opponent had been given a fair chance.
+Those are the two ways a benchmark misleads and only one was being watched.
 
 ## The benchmark is a simulation
 
