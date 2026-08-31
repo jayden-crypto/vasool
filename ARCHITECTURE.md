@@ -432,10 +432,24 @@ comparison is paired, which removes the variance that would otherwise swamp a
 and never appears on `FailureEvent`. There is a test asserting the observable
 event carries no field that leaks the answer.
 
-**The environment measures harms independently.** It notices a 2am SMS, a contact
-to an opted-out customer, or a collection on a settled order whether or not the
-arm that caused it has any concept of those things. A self-reported harm ledger
-would be worthless.
+**The environment measures harms independently, and the independence is
+structural.** `vasool/bench/environment.py` imports nothing from
+`vasool.kernel`. Harms come from `physics_facts.py`, which reads `HiddenState` —
+what is actually true — rather than the provider's error code, which is only a
+claim about what is true.
+
+That distinction was not always enforced, and enforcing it changed the result.
+The environment used to import the kernel's `in_quiet_hours` and
+`raw_evidence.read`, so four of six harms restated the kernel's rules: when a
+misleading error code fooled `I6`, it fooled the measurement identically, and
+arm E scored zero futile retries. It does not. It scores 7, alongside 4
+risk-decline retries, because roughly a tenth of the generator's error codes
+lie and `I6` believes them.
+
+The kernel remains far better than the alternatives on both rows — 309 and 60
+for the fixed-schedule arm — but the zeros were an artifact of grading with the
+same reader being graded. `I1` is the only check that survives untouched,
+because it reads live provider state rather than a claim about it.
 
 **Nothing is credited that was not earned.** Out-of-band settlements go to the
 customer, not to an arm. A collection on an already-settled order is counted as a

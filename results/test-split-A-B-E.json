@@ -3,7 +3,7 @@
   "seed": 20260905,
   "n_cases": 500,
   "at_risk_paise": 92399500,
-  "generated_at": "20260831-135221",
+  "generated_at": "20260831-144325",
   "provider": "ollama \u00b7 qwen2.5:7b @ http://localhost:11434 (local, free)",
   "arms": [
     {
@@ -229,10 +229,10 @@
         "contact_to_opted_out": 0,
         "quiet_hours_violation": 0,
         "over_contacted": 0,
-        "futile_retry": 220,
-        "risk_retry_strike": 27
+        "futile_retry": 309,
+        "risk_retry_strike": 60
       },
-      "harm_cost_paise": 1977500,
+      "harm_cost_paise": 2104500,
       "denials": {},
       "diagnosis_stats": {
         "decisions": 1504,
@@ -533,10 +533,10 @@
         "contact_to_opted_out": 0,
         "quiet_hours_violation": 3,
         "over_contacted": 170,
-        "futile_retry": 0,
-        "risk_retry_strike": 0
+        "futile_retry": 7,
+        "risk_retry_strike": 7
       },
-      "harm_cost_paise": 6860000,
+      "harm_cost_paise": 6881000,
       "denials": {},
       "diagnosis_stats": {
         "decisions": 1504,
@@ -826,10 +826,10 @@
         "contact_to_opted_out": 0,
         "quiet_hours_violation": 0,
         "over_contacted": 151,
-        "futile_retry": 0,
-        "risk_retry_strike": 0
+        "futile_retry": 7,
+        "risk_retry_strike": 4
       },
-      "harm_cost_paise": 4530000,
+      "harm_cost_paise": 4543500,
       "denials": {
         "ALREADY_COLLECTED": 17,
         "BELOW_STOPPING_THRESHOLD": 14,

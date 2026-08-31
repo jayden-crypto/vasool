@@ -4,10 +4,18 @@ The environment decides what *actually* happens when an action is taken. It is
 the referee, and it is deliberately written so that no arm can influence it
 except through the actions it takes.
 
-Harm detection here is independent of the kernel. The environment notices a
-double collect, a contact to an opted-out customer, or a 2am SMS whether or not
-the arm that caused it has any concept of those things. That independence is
-what makes the harm ledger a measurement rather than a self-report.
+Harm detection here is independent of the kernel, and that independence is
+enforced by construction: this module imports nothing from ``vasool.kernel``.
+Harms are derived in ``physics_facts`` from *hidden* state — what is actually
+true — rather than from the provider's error code, which is only a claim about
+what is true.
+
+The difference is load-bearing. An earlier version imported the kernel's own
+quiet-hours function and evidence reader, so four of six harms restated the
+kernel's rules and an arm scoring zero proved only that the check had been
+written. Now, when the generator emits a misleading error code, the kernel and
+the environment genuinely disagree — and the ledger records what happened, not
+what the kernel believed would happen.
 """
 
 from __future__ import annotations
@@ -16,6 +24,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Optional
 
+from vasool.bench import physics_facts
 from vasool.bench.hidden import HiddenState, Physics, uniform01
 from vasool.core.policy import Costs, Policy
 from vasool.core.types import (
@@ -30,8 +39,6 @@ from vasool.core.types import (
     Intervention,
 )
 from vasool.executor.backend import PaymentsBackend
-from vasool.kernel import raw_evidence
-from vasool.kernel.invariants import in_quiet_hours
 
 
 @dataclass
@@ -131,7 +138,9 @@ class Environment(PaymentsBackend):
                 self.harms.add("contact_to_opted_out")
                 harms.append("contact_to_opted_out")
                 h.customer_lost = True
-            if in_quiet_hours(now, event.customer.tz_offset_minutes, self.policy):
+            if physics_facts.is_antisocial_hour(
+                now, event.customer.tz_offset_minutes
+            ):
                 self.harms.add("quiet_hours_violation")
                 harms.append("quiet_hours_violation")
             if h.contacts_made >= h.patience:
@@ -141,15 +150,17 @@ class Environment(PaymentsBackend):
             h.contacts_made += 1
 
         # --- harm: replaying an instrument that cannot work ----------------
+        # Derived from hidden truth, not from the kernel's reading of the
+        # error code. When the generator emits a misleading code the two
+        # disagree — and the harm ledger should see the disagreement rather
+        # than inherit the kernel's blind spot.
         if proposal.intervention in RETRY_INTERVENTIONS:
-            facts = raw_evidence.read(event)
-            if facts.retry_is_harmful:
+            if physics_facts.replay_is_harmful(h):
                 self.harms.add("risk_retry_strike")
                 harms.append("risk_retry_strike")
             elif (
                 proposal.intervention is Intervention.RETRY_SAME_RAIL
-                and facts.retry_is_futile
-                and not h.instrument_refreshed
+                and physics_facts.replay_is_futile(h)
             ):
                 self.harms.add("futile_retry")
                 harms.append("futile_retry")

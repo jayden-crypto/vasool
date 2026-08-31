@@ -170,7 +170,15 @@ not be made on it. The two arguments that do survive are not about money:
    double-collect attempts, 11 retries against risk declines and ₹574 actually
    double-charged. Behind the kernel, zero of each.
 
-## Four of the six measured harms share code with the kernel
+## Four of the six measured harms used to share code with the kernel — fixed
+
+**Resolved.** `environment.py` now imports nothing from `vasool.kernel`, and
+`physics_facts.py` derives harms from hidden truth. Correcting it turned two of
+arm E's zeros into 7 futile retries and 4 risk-decline retries, and surfaced 3
+quiet-hours violations in the baseline. The original text is kept below because
+the correction is more informative than the fix.
+
+### What it looked like before
 
 The README claims the environment measures harms independently of the arm. For
 two of six that is true. For four it is not:
@@ -193,8 +201,11 @@ is one of the dependent ones. The two genuinely independent harms are the two
 that matter most, and `over_contacted` does not go to zero for the gated arm:
 151 remain, which is the most honest number in this repository.
 
-Fixing this properly means the environment deriving harm from hidden state
-alone, never importing from `vasool.kernel`. It is the change I would make next.
+That is what was fixed. The residual limitation is narrower: `physics_facts`
+re-implements quiet hours as a fact about people (21:00–09:00 local) rather than
+reading `policy.yaml`, so widening the policy window would not widen the
+measured harm. That is deliberate — the harm is being woken up, not breaching a
+config — but it does mean the two can drift.
 
 ## The router's contradictory-case result, both splits
 

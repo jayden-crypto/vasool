@@ -3,32 +3,32 @@
   "sweep": [
     {
       "multiplier": 2.0,
-      "b_net_paise": 32265191,
-      "e_net_paise": 35536306,
-      "ratio": 1.101
+      "b_net_paise": 32223191,
+      "e_net_paise": 35509306,
+      "ratio": 1.102
     },
     {
       "multiplier": 1.0,
-      "b_net_paise": 39125191,
-      "e_net_paise": 40066306,
+      "b_net_paise": 39104191,
+      "e_net_paise": 40052806,
       "ratio": 1.024
     },
     {
       "multiplier": 0.5,
-      "b_net_paise": 42555191,
-      "e_net_paise": 42331306,
+      "b_net_paise": 42544691,
+      "e_net_paise": 42324556,
       "ratio": 0.995
     },
     {
       "multiplier": 0.25,
-      "b_net_paise": 44270191,
-      "e_net_paise": 43463806,
+      "b_net_paise": 44264941,
+      "e_net_paise": 43460431,
       "ratio": 0.982
     },
     {
       "multiplier": 0.1,
-      "b_net_paise": 45299191,
-      "e_net_paise": 44143306,
+      "b_net_paise": 45297091,
+      "e_net_paise": 44141956,
       "ratio": 0.974
     },
     {

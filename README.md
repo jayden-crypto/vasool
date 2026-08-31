@@ -68,27 +68,40 @@ and the result is much smaller and much more defensible.
 | Actions executed | 1,204 | 1,238 | **1,178** |
 | Recovered per action | ₹298 | ₹376 | **₹379** |
 | Priced harm | ₹19,775 | ₹64,700 | **₹45,300** |
-| **Net value** | ₹3,38,337 | ₹3,95,904 | **₹4,00,663** |
+| Priced harm | ₹21,045 | ₹68,810 | **₹45,435** |
+| **Net value** | ₹3,37,067 | ₹3,91,042 | **₹4,00,528** |
 
-**E beats B by 1.01×.** That is the honest number. Not double.
+**E beats B by 1.02×.** That is the honest number. Not double.
 
 ### What the kernel is actually worth
 
 | Harm | A cron | B rules | **E rules + kernel** |
 |---|---:|---:|---:|
-| **Double-collect attempts** | 36 | **34** | **0** |
+| **Double-collect attempts** | 36 | 34 | **0** |
 | Contacts to opted-out customers | 0 | 0 | 0 |
-| Contacted past their patience | 0 | 159 | 151 |
-| Quiet-hours violations | 0 | 0 | 0 |
-| Futile retries on dead instruments | 220 | **0** | **0** |
-| Retries against issuer risk declines | 27 | **0** | **0** |
+| Contacted past their patience | 0 | 170 | 151 |
+| Quiet-hours violations | 0 | 3 | **0** |
+| Futile retries on dead instruments | 309 | 7 | **7** |
+| Retries against issuer risk declines | 60 | 7 | **4** |
 
-Once the baseline has consent and frequency checks, most rows tie. **One does
-not: 34 double-collect attempts against zero.**
+**Two rows in that table used to be zeros, and the zeros were an artifact.**
 
-The quiet-hours row is a zero that means *untested*, not *prevented* — it never
-fires for any arm in this benchmark. It is shown rather than omitted because a
-row of zeros that proves nothing should be visible.
+The environment originally measured futile retries and risk-decline retries by
+importing the kernel's own evidence reader. So when the kernel was fooled by a
+misleading error code, the measurement was fooled identically, and arm E scored
+a clean zero on both. That proved the check had been written, not that it
+worked.
+
+The environment now derives every harm from *hidden* state — what is actually
+true — and imports nothing from `vasool.kernel`. The zeros became **7 futile
+retries and 4 risk-decline retries**, because `I6` reads the provider's error
+code and roughly a tenth of those codes lie. The kernel is still far better than
+the alternatives (309 and 60 for the cron), but "zero" was never real.
+
+So once the baseline has consent and frequency checks, **one row is a genuine
+separation: 34 double-collect attempts against zero.** `I1` reads live provider
+state rather than a claim about state, which is precisely why it is the one
+check that cannot be fooled by bad evidence — or written as planner logic.
 
 That is the kernel's irreplaceable contribution, and it is irreplaceable for a
 structural reason rather than an implementation one. Consent and contact
@@ -360,9 +373,13 @@ Four things, each of which costs the agent numbers it could otherwise claim:
    out of band mid-workflow. No arm gets the credit, and money collected on an
    order that was already settled counts as a double charge, not a recovery.
 
-The harm ledger is measured by the environment, independently of the arm.
-The simulator notices a 2am SMS whether or not the architecture that sent it has
-any concept of quiet hours.
+The harm ledger is measured by the environment, independently of the arm — and
+independence is enforced structurally, not asserted: `environment.py` imports
+nothing from `vasool.kernel`, and `physics_facts.py` derives every harm from
+hidden truth rather than from the error code the kernel reads. An earlier
+version did import the kernel's evidence reader, which made four of six harms
+restate the kernel's own rules; correcting it turned two of arm E's zeros into
+7 and 4.
 
 ### The ceiling the model had to clear
 
