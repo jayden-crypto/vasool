@@ -271,6 +271,10 @@ is recorded in every results JSON and printed at the top of every run.
 make setup && make test
 ```
 
+`make setup` needs [uv](https://docs.astral.sh/uv/); `pip install -e ".[dev]"`
+works too. Every other target checks for dependencies first and tells you to run
+setup rather than failing with an import error.
+
 ```bash
 make bench
 ```

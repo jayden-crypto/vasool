@@ -3,7 +3,7 @@
 PY := $(shell test -x .venv/bin/python && echo .venv/bin/python || echo python3)
 LEDGER := $(shell ls -t runs/*-E-*.jsonl 2>/dev/null | head -1)
 
-.PHONY: help setup test bench bench-dev bench-ledger bench-full bench-local bench-local-quick warm warm-local classify ceiling sensitivity replicate faults trace live live-inject clean
+.PHONY: help setup .check-deps test bench bench-dev bench-ledger bench-full bench-local bench-local-quick warm warm-local classify ceiling sensitivity replicate faults trace live live-inject clean
 
 help:
 	@echo "Vasool — a recovery agent that is not allowed to move money"
@@ -28,17 +28,31 @@ setup:
 	uv venv --python 3.12 .venv
 	uv pip install --python $(PY) -e ".[llm,live,dev]"
 
-test:
+# Every target that needs the project's dependencies goes through this, so a
+# reviewer who runs `make test` before `make setup` gets a sentence rather than
+# a traceback.
+.check-deps:
+	@$(PY) -c "import pytest, pydantic, yaml, rich" 2>/dev/null || { \
+	  echo ""; \
+	  echo "  Dependencies are not installed. Run:"; \
+	  echo ""; \
+	  echo "      make setup"; \
+	  echo ""; \
+	  echo "  (needs uv: https://docs.astral.sh/uv/ — or pip install -e '.[dev]')"; \
+	  echo ""; \
+	  exit 1; }
+
+test: .check-deps
 	$(PY) -m pytest vasool -q
 
-bench:
+bench: .check-deps
 	$(PY) -m vasool.bench.report --split test --arms A,B,E --ledger
 
-bench-full:
+bench-full: .check-deps
 	$(PY) -m vasool.bench.report --split test --arms A,B,C,D,E --ledger
 
 # Model arms on a local model, at zero cost. Needs `ollama serve` running.
-bench-local:
+bench-local: .check-deps
 	VASOOL_PROVIDER=ollama VASOOL_MODEL=$${VASOOL_MODEL:-qwen2.5:7b} \
 	$(PY) -m vasool.bench.report --split test --arms A,B,C,D,E --ledger
 
@@ -56,31 +70,31 @@ bench-local-quick:
 	VASOOL_PROVIDER=ollama VASOOL_MODEL=$${VASOOL_MODEL:-qwen2.5:7b} \
 	$(PY) -m vasool.bench.report --split dev --n 40 --arms B,C,D,E
 
-bench-dev:
+bench-dev: .check-deps
 	$(PY) -m vasool.bench.report --split dev --n 120 --arms A,B,E
 
-bench-ledger:
+bench-ledger: .check-deps
 	$(PY) -m vasool.bench.report --split test --arms E --ledger
 
 # One model call per case instead of ~5.4 — isolates the classification claim.
-classify:
+classify: .check-deps
 	$(PY) -m vasool.bench.classify --n $${N:-60} --split test \
 	  --models "$${VASOOL_MODEL:-qwen/qwen3.8-27b}" \
 	  --routed "$${VASOOL_MODEL:-qwen/qwen3.8-27b}" --mode conflict_only
 
-replicate:
+replicate: .check-deps
 	$(PY) -m vasool.bench.replicate --reps $${REPS:-12} --n $${N:-300}
 
-sensitivity:
+sensitivity: .check-deps
 	$(PY) -m vasool.bench.sensitivity
 
-ceiling:
+ceiling: .check-deps
 	$(PY) -m vasool.bench.ceiling --split test
 
-faults:
+faults: .check-deps
 	$(PY) -m vasool.faults.demo
 
-trace:
+trace: .check-deps
 	@test -n "$(LEDGER)" || (echo "no ledger yet — run 'make bench' first" && exit 1)
 	$(PY) -m vasool.cli.trace $(LEDGER)
 
