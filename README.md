@@ -105,9 +105,16 @@ its keep: a model with no kernel produced 41 double-collect attempts, 11 retries
 against risk declines, and ₹574 actually double-charged. The same model behind
 the kernel produced zero of each.
 
+**And the 1.01× depends on prices I chose.** `make sensitivity` sweeps them:
+E wins at 2.0× (1.07) and 1.0× (1.01), and **loses below that** — 0.99 at half
+price. The economic case is close to a wash and should not be the argument for
+the kernel. The arguments that survive are that I1 prevents a harm no planner
+can, and that kernel checks bind any proposer rather than one planner.
+
 > Read [LIMITATIONS.md](LIMITATIONS.md) before quoting any of this. The batch is
 > simulated; `config/generator.yaml` is committed so you can check it was not
-> shaped to flatter the agent.
+> shaped to flatter the agent. Four of six measured harms share code with the
+> kernel — LIMITATIONS says which.
 
 ### The router, and the second time this project refuted itself
 

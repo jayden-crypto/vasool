@@ -138,6 +138,81 @@ measured on test. The routing rule reads no ground truth and is deterministic,
 so it cannot be tuned per case — but the *choice* of rule was informed by
 results, and that should be assumed rather than discovered.
 
+## The economic case rests entirely on the harm prices
+
+`make sensitivity` sweeps the harm multiplier over the committed 500-case
+result. This is the sweep that should have existed from the start:
+
+| harm × | B rules | E rules + kernel | E/B | winner |
+|---:|---:|---:|---:|---|
+| 2.00 | ₹3,31,204 | ₹3,55,363 | 1.07 | E |
+| **1.00** | **₹3,95,904** | **₹4,00,663** | **1.01** | **E** |
+| 0.50 | ₹4,28,254 | ₹4,23,313 | 0.99 | B |
+| 0.25 | ₹4,44,429 | ₹4,34,638 | 0.98 | B |
+| 0.00 | ₹4,60,604 | ₹4,45,963 | 0.97 | B |
+
+**The kernel wins on net value only at roughly the prices I chose or above**, and
+the margin at 1.0× is 1.2%. Halve them and the rules engine wins. This is a much
+weaker economic claim than an earlier version of this repository made, and it is
+the true one.
+
+So the economic argument is close to a wash, and the case for the kernel should
+not be made on it. The two arguments that do survive are not about money:
+
+1. **I1 prevents a class of harm no planner can.** 34 double-collect attempts
+   against zero. Consent and contact frequency are properties of state the
+   planner holds, so a planner can enforce them — and once it does, those rows
+   tie. Whether an order was paid moments ago through another channel is not,
+   and no amount of planner logic substitutes for reading the provider at the
+   moment of execution.
+2. **Kernel checks bind any proposer; planner checks bind that planner.** Arms C
+   and D are where this shows: the same model with no kernel produced 41
+   double-collect attempts, 11 retries against risk declines and ₹574 actually
+   double-charged. Behind the kernel, zero of each.
+
+## Four of the six measured harms share code with the kernel
+
+The README claims the environment measures harms independently of the arm. For
+two of six that is true. For four it is not:
+
+| Harm | Measured via | Independent? |
+|---|---|---|
+| `quiet_hours_violation` | `kernel.invariants.in_quiet_hours` | No — the same function I4 uses |
+| `contact_to_opted_out` | `hidden.opted_out` | No — the same variable I5 reads |
+| `futile_retry` | `raw_evidence.read` | No — the same function I6 uses |
+| `risk_retry_strike` | `raw_evidence.read` | No — the same function I6 uses |
+| `double_collect_attempt` | the environment's own settled state | **Yes** |
+| `over_contacted` | hidden patience, never observable | **Yes** |
+
+An arm scoring zero on the first four restates the kernel's own rules rather
+than measuring anything. It shows the check was written, not that it survives a
+world where truth differs from what you observe.
+
+The example the README picked to demonstrate independence — noticing a 2am SMS —
+is one of the dependent ones. The two genuinely independent harms are the two
+that matter most, and `over_contacted` does not go to zero for the gated arm:
+151 remain, which is the most honest number in this repository.
+
+Fixing this properly means the environment deriving harm from hidden state
+alone, never importing from `vasool.kernel`. It is the change I would make next.
+
+## The router's contradictory-case result, both splits
+
+`LIMITATIONS` previously cited the test split's 6/7 (85.7%) and the dev split's
+*overall* figures, while omitting the dev split's contradictory figure — the one
+the whole claim rests on:
+
+| split | contradictory cases | model |
+|---|---|---|
+| test (reported in README) | 7 | 6/7 = 85.7% |
+| dev (in the repo, previously uncited) | 10 | 6/10 = 60.0% |
+| **combined** | **17** | **12/17 = 70.6%** |
+
+Quoting the better of two available numbers on the metric the thesis depends on
+is the kind of thing that is only visible to someone who reads both result
+files. It is recorded here now. It is also moot, since the zero-model rule beats
+both — but it was not moot when it was written.
+
 ## The model arms measure a 7B, not language models
 
 Arms C and D ran on `qwen2.5:7b` locally, because the hosted free tiers cap at

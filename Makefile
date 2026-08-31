@@ -1,7 +1,7 @@
 PY := .venv/bin/python
 LEDGER := $(shell ls -t runs/*-E-*.jsonl 2>/dev/null | head -1)
 
-.PHONY: help setup test bench bench-dev bench-ledger bench-full bench-local bench-local-quick warm warm-local classify ceiling faults trace live live-inject clean
+.PHONY: help setup test bench bench-dev bench-ledger bench-full bench-local bench-local-quick warm warm-local classify ceiling sensitivity faults trace live live-inject clean
 
 help:
 	@echo "Vasool — a recovery agent that is not allowed to move money"
@@ -14,6 +14,7 @@ help:
 	@echo "  make warm-local   pre-compute diagnoses in parallel into the cache"
 	@echo "  make bench-dev    fast pass on the dev split, for iterating"
 	@echo "  make classify     rules vs model vs router, one call per case"
+	@echo "  make sensitivity  how much of the result is the harm-price model"
 	@echo "  make ceiling      how much of the batch is decidable at all"
 	@echo "  make faults       fault injection, including the prompt-injection demo"
 	@echo "  make trace        render the most recent audit ledger"
@@ -63,6 +64,9 @@ classify:
 	$(PY) -m vasool.bench.classify --n $${N:-60} --split test \
 	  --models "$${VASOOL_MODEL:-qwen/qwen3.8-27b}" \
 	  --routed "$${VASOOL_MODEL:-qwen/qwen3.8-27b}" --mode conflict_only
+
+sensitivity:
+	$(PY) -m vasool.bench.sensitivity
 
 ceiling:
 	$(PY) -m vasool.bench.ceiling --split test

@@ -1,0 +1,41 @@
+{
+  "source": "/Users/jayden/Desktop/rzpay/results/test-split-A-B-E.json",
+  "sweep": [
+    {
+      "multiplier": 2.0,
+      "b_net_paise": 33120374,
+      "e_net_paise": 35536306,
+      "ratio": 1.073
+    },
+    {
+      "multiplier": 1.0,
+      "b_net_paise": 39590374,
+      "e_net_paise": 40066306,
+      "ratio": 1.012
+    },
+    {
+      "multiplier": 0.5,
+      "b_net_paise": 42825374,
+      "e_net_paise": 42331306,
+      "ratio": 0.988
+    },
+    {
+      "multiplier": 0.25,
+      "b_net_paise": 44442874,
+      "e_net_paise": 43463806,
+      "ratio": 0.978
+    },
+    {
+      "multiplier": 0.1,
+      "b_net_paise": 45413374,
+      "e_net_paise": 44143306,
+      "ratio": 0.972
+    },
+    {
+      "multiplier": 0.0,
+      "b_net_paise": 46060374,
+      "e_net_paise": 44596306,
+      "ratio": 0.968
+    }
+  ]
+}
