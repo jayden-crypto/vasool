@@ -77,7 +77,19 @@ bench-ledger: .check-deps
 	$(PY) -m vasool.bench.report --split test --arms E --ledger
 
 # One model call per case instead of ~5.4 — isolates the classification claim.
+#
+# Warns rather than silently degrading: the model name below is a hosted one, so
+# running this while .env points VASOOL_PROVIDER at ollama asks Ollama for a
+# model it does not have and every call fails into the rules fallback — a table
+# of zeros that looks like a result.
 classify: .check-deps
+	@$(PY) -c "import os,sys; sys.path.insert(0,'.'); \
+	  from vasool.core import env; env.load(); \
+	  p=os.environ.get('VASOOL_PROVIDER',''); m='$${VASOOL_MODEL:-qwen/qwen3.8-27b}'; \
+	  sys.exit(0) if (p!='ollama' or '/' not in m) else \
+	  (print('\n  VASOOL_PROVIDER=ollama but the model is \''+m+'\', which is a hosted id.'), \
+	   print('  Set VASOOL_PROVIDER=openai_compat in .env, or pass a local model:'), \
+	   print('\n      VASOOL_MODEL=qwen2.5:7b make classify\n'), sys.exit(1))"
 	$(PY) -m vasool.bench.classify --n $${N:-60} --split test \
 	  --models "$${VASOOL_MODEL:-qwen/qwen3.8-27b}" \
 	  --routed "$${VASOOL_MODEL:-qwen/qwen3.8-27b}" --mode conflict_only
